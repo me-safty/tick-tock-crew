@@ -3,7 +3,7 @@ import { api } from "@tick-tock-crew/backend/api"
 import { useQuery } from "convex/react"
 import { sessionId } from "./guest"
 import { LobbyScreen } from "./LobbyScreen"
-import { MatchStarted } from "./MatchStarted"
+import { MatchScreen } from "./MatchScreen"
 import type { Lobby } from "./roles"
 import { navigate } from "./router"
 
@@ -38,7 +38,9 @@ function JoinedRoom({ lobby }: { readonly lobby: Lobby }) {
     case "lobby":
       return <LobbyScreen lobby={lobby} />
     case "playing":
-      return <MatchStarted lobby={lobby} />
+    case "won":
+    case "lost":
+      return <MatchScreen lobby={lobby} />
     default: {
       const _exhaustive: never = lobby.status
       return _exhaustive
