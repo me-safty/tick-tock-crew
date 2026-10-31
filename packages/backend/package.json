@@ -1,0 +1,26 @@
+{
+  "name": "@tick-tock-crew/backend",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./api": "./convex/_generated/api.js"
+  },
+  "scripts": {
+    "dev": "convex dev",
+    "setup": "convex dev --once",
+    "test": "vitest run",
+    "typecheck": "tsc -p convex"
+  },
+  "dependencies": {
+    "@tick-tock-crew/rules": "workspace:*",
+    "convex": "catalog:",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@edge-runtime/vm": "5.0.0",
+    "convex-test": "0.0.66",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}
