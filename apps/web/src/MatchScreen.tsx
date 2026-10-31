@@ -100,9 +100,12 @@ function OperatorPanel({ code, view }: { readonly code: string; readonly view: V
   const cutWire = useMutation(api.match.cutWire)
   const { error, run } = useMutationError()
   const [feedback, setFeedback] = useState<keyof typeof CUT_FEEDBACK | null>(null)
+  const [cutting, setCutting] = useState(false)
   const cut = async (module: number, wire: number) => {
+    setCutting(true)
     setFeedback(null)
     setFeedback(await run(cutWire({ code, sessionId, module, wire })))
+    setCutting(false)
   }
   return (
     <>
@@ -122,7 +125,7 @@ function OperatorPanel({ code, view }: { readonly code: string; readonly view: V
                 <button
                   type="button"
                   className="button"
-                  disabled={wire.cut || module.solved}
+                  disabled={wire.cut || module.solved || cutting}
                   onClick={() => void cut(moduleIndex, wireIndex)}
                 >
                   {wire.cut ? "Cut" : `Cut wire ${wireIndex + 1}`}
