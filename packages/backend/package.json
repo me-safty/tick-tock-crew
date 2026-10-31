@@ -12,6 +12,7 @@
     "typecheck": "tsc -p convex"
   },
   "dependencies": {
+    "@convex-dev/presence": "0.4.0",
     "@tick-tock-crew/rules": "workspace:*",
     "convex": "catalog:",
     "effect": "catalog:"
