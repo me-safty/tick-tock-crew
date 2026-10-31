@@ -7,7 +7,6 @@ function errorMessage(error: unknown) {
     : "Something went wrong. Try again."
 }
 
-/** Runs a mutation and keeps its user-facing error message until the next run. */
 export function useMutationError() {
   const [error, setError] = useState<string | null>(null)
   const run = <T,>(mutation: Promise<T>) => {

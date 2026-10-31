@@ -3,7 +3,7 @@ import type { FunctionReturnType } from "convex/server"
 
 export type Lobby = NonNullable<FunctionReturnType<typeof api.rooms.lobby>>
 export type Seat = Lobby["seats"][number]
-export type Role = Seat["role"]
+type Role = Seat["role"]
 
 export const ROLE_INFO = {
   operator: { title: "Operator", blurb: "Sees and handles the bomb, but can't read the manual." },

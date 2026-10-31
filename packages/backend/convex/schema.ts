@@ -1,8 +1,7 @@
 import { defineSchema, defineTable } from "convex/server"
-import { v, type Infer } from "convex/values"
+import { v } from "convex/values"
 
 export const role = v.union(v.literal("operator"), v.literal("analyst"), v.literal("scanner"))
-export type Role = Infer<typeof role>
 
 const roomFields = { code: v.string(), hostSessionId: v.string() }
 
