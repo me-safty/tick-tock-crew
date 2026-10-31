@@ -7,6 +7,7 @@
   },
   "scripts": {
     "dev": "convex dev",
+    "setup": "convex dev --once",
     "test": "vitest run",
     "typecheck": "tsc -p convex"
   },

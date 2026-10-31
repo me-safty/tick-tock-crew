@@ -16,6 +16,7 @@
     "vitest": "5.0.5"
   },
   "scripts": {
+    "setup": "cd packages/backend && bun run setup",
     "dev": "bun run --parallel --filter '*' dev",
     "test": "bun run --filter '*' test",
     "typecheck": "bun run --filter '*' typecheck"

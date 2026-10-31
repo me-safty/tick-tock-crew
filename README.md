@@ -10,12 +10,13 @@ See [docs/plan.md](docs/plan.md) for the design and milestones.
 
 ```sh
 bun install
+bun run setup      # once: log in to Convex, pick or create the project, push functions
 bun run dev        # Convex dev deployment + Vite on http://localhost:5173
 bun run test       # Vitest in every package (not `bun test`)
 bun run typecheck
 ```
 
-The first `bun run dev` asks you to log in to Convex and pick a project, then writes `packages/backend/.env.local` (`CONVEX_DEPLOYMENT`, `VITE_CONVEX_URL`). The web app reads `VITE_CONVEX_URL` from that file.
+`bun run setup` writes `packages/backend/.env.local` (`CONVEX_DEPLOYMENT`, `VITE_CONVEX_URL`), which the web app reads. Run it before the first `bun run dev`: `dev` runs without a terminal prompt, so without that file `convex dev` would quietly start an anonymous local backend instead of asking you to log in.
 
 | Path | What |
 | --- | --- |
