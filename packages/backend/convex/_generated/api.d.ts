@@ -9,6 +9,8 @@
  */
 
 import type * as health from "../health.js";
+import type * as presence from "../presence.js";
+import type * as rooms from "../rooms.js";
 
 import type {
   ApiFromModules,
@@ -18,6 +20,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   health: typeof health;
+  presence: typeof presence;
+  rooms: typeof rooms;
 }>;
 
 /**
@@ -46,4 +50,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  presence: import("@convex-dev/presence/_generated/component.js").ComponentApi<"presence">;
+};
