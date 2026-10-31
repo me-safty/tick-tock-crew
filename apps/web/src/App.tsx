@@ -1,13 +1,17 @@
-import { api } from "@tick-tock-crew/backend/api"
-import { useQuery } from "convex/react"
-import { Scene } from "./Scene"
+import { Home } from "./Home"
+import { Room } from "./Room"
+import { useRoute } from "./router"
 
 export function App() {
-  const health = useQuery(api.health.health)
-  return (
-    <>
-      <Scene />
-      <div className="overlay">Convex health: {health ?? "connecting…"}</div>
-    </>
-  )
+  const route = useRoute()
+  switch (route.kind) {
+    case "home":
+      return <Home />
+    case "room":
+      return <Room key={route.code} code={route.code} />
+    default: {
+      const _exhaustive: never = route
+      return _exhaustive
+    }
+  }
 }

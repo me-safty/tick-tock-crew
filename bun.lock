@@ -8,6 +8,7 @@
     "apps/web": {
       "name": "@tick-tock-crew/web",
       "dependencies": {
+        "@convex-dev/presence": "0.4.0",
         "@react-three/drei": "10.7.9",
         "@react-three/fiber": "9.8.2",
         "@tick-tock-crew/backend": "workspace:*",
