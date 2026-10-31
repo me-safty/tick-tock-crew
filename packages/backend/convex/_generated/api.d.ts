@@ -8,7 +8,7 @@
  * @module
  */
 
-import type * as health from "../health.js";
+import type * as match from "../match.js";
 import type * as presence from "../presence.js";
 import type * as rooms from "../rooms.js";
 
@@ -19,7 +19,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  health: typeof health;
+  match: typeof match;
   presence: typeof presence;
   rooms: typeof rooms;
 }>;
