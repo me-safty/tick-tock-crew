@@ -4,7 +4,6 @@ import { solveWires } from "./wires"
 
 export const MAX_STRIKES = 3
 
-// M5 adds a state per new module kind; `progress` holds what that module needs to remember.
 export const WiresState = Schema.Struct({
   kind: Schema.Literal("wires"),
   solved: Schema.Boolean,

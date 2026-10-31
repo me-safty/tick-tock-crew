@@ -9,7 +9,6 @@ export type Difficulty = typeof Difficulty.Type
 export const Edgework = Schema.Struct({ serial: Schema.String.check(Schema.isPattern(/^[A-Z]{2}\d[A-Z]{2}\d$/)) })
 export type Edgework = typeof Edgework.Type
 
-// M5 adds the keypad, valve and dial modules to this union.
 export const BombModule = Schema.Union([WiresModule])
 export type BombModule = typeof BombModule.Type
 export type ModuleKind = BombModule["kind"]

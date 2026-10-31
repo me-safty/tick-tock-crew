@@ -17,7 +17,6 @@ export default defineSchema({
       v.object({ ...matchFields, status: v.union(v.literal("won"), v.literal("lost")) }),
     ),
   ).index("by_code", ["code"]),
-  // One row per bomb module. M5 turns this into a union with one variant per module kind.
   modules: defineTable({
     roomId: v.id("rooms"),
     index: v.number(),
