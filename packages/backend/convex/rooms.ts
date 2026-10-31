@@ -144,8 +144,9 @@ export const startMatch = mutation({
     const room = await getLobbyRoom(ctx, code)
     if (room.hostSessionId !== sessionId) throw new ConvexError("Only the host can start the match")
     const seats = await roomSeats(ctx, room._id)
-    if (seats.length < ROLES.length || seats.some((seat) => !seat.ready)) {
-      throw new ConvexError("All 3 seats must be filled and ready")
+    const online = await onlineSessions(ctx, room.code)
+    if (seats.length < ROLES.length || seats.some((seat) => !seat.ready || !online.has(seat.sessionId))) {
+      throw new ConvexError("All 3 players must be seated, online and ready")
     }
     await ctx.db.patch("rooms", room._id, { status: "playing", seed: Math.floor(Math.random() * 2 ** 32) })
     return null

@@ -95,6 +95,7 @@ describe("startMatch", () => {
       { sessionId: "c", name: "Cy", role: "scanner" },
     ] as const
     for (const p of players) {
+      await goOnline(t, code, p.sessionId)
       await t.mutation(api.rooms.claimSeat, { code, ...p })
       await t.mutation(api.rooms.setReady, { code, sessionId: p.sessionId, ready })
     }
@@ -102,10 +103,11 @@ describe("startMatch", () => {
 
   test("rejects when a seat is empty", async () => {
     const { t, code } = await setup()
+    await goOnline(t, code, "host")
     await t.mutation(api.rooms.claimSeat, { code, sessionId: "host", name: "Hana", role: "operator" })
     await t.mutation(api.rooms.setReady, { code, sessionId: "host", ready: true })
     await expect(t.mutation(api.rooms.startMatch, { code, sessionId: "host" })).rejects.toThrow(
-      "All 3 seats must be filled and ready",
+      "All 3 players must be seated, online and ready",
     )
   })
 
@@ -114,7 +116,17 @@ describe("startMatch", () => {
     await seatAll(t, code, true)
     await t.mutation(api.rooms.setReady, { code, sessionId: "c", ready: false })
     await expect(t.mutation(api.rooms.startMatch, { code, sessionId: "host" })).rejects.toThrow(
-      "All 3 seats must be filled and ready",
+      "All 3 players must be seated, online and ready",
+    )
+  })
+
+  test("rejects when a ready player is offline", async () => {
+    const { t, code } = await setup()
+    await seatAll(t, code, true)
+    const { sessionToken } = await goOnline(t, code, "c")
+    await t.mutation(api.presence.disconnect, { sessionToken })
+    await expect(t.mutation(api.rooms.startMatch, { code, sessionId: "host" })).rejects.toThrow(
+      "All 3 players must be seated, online and ready",
     )
   })
 

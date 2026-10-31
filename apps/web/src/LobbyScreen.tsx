@@ -15,7 +15,7 @@ export function LobbyScreen({ lobby }: { readonly lobby: Lobby }) {
 
   const room = { code: lobby.code, sessionId }
   const seated = lobby.seats.some((seat) => seat.player?.isYou)
-  const allReady = lobby.seats.every((seat) => seat.player?.ready)
+  const allReady = lobby.seats.every((seat) => seat.player?.ready && seat.player.online)
 
   return (
     <main className="screen lobby">
@@ -69,7 +69,7 @@ export function LobbyScreen({ lobby }: { readonly lobby: Lobby }) {
         ) : (
           <p className="muted">The host starts the match once everyone is ready.</p>
         )}
-        {!allReady && <p className="muted">All 3 seats must be filled and ready.</p>}
+        {!allReady && <p className="muted">All 3 players must be seated, online and ready.</p>}
         {error && (
           <p className="error" role="alert">
             {error}
