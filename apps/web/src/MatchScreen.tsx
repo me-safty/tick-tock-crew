@@ -74,10 +74,11 @@ function Countdown({ endsAt }: { readonly endsAt: number }) {
 
 function Strikes({ strikes }: { readonly strikes: number }) {
   return (
-    <span className="strikes" aria-label={`${strikes} of ${MAX_STRIKES} strikes`}>
+    // The key replays the newest strike's animation for every role when the count changes.
+    <span key={strikes} className="strikes" role="img" aria-label={`${strikes} of ${MAX_STRIKES} strikes`}>
       <span className="eyebrow">Strikes</span>
       {Array.from({ length: MAX_STRIKES }, (_, i) => (
-        <span key={i} className={`strike${i < strikes ? " on" : ""}`}>
+        <span key={i} className={`strike${i < strikes ? " on" : ""}${i === strikes - 1 ? " latest" : ""}`}>
           ✕
         </span>
       ))}
@@ -94,6 +95,7 @@ function ModuleHeader({ title, solved }: { readonly title: string; readonly solv
   )
 }
 
+const FEEDBACK_MS = 4000
 const CUT_FEEDBACK = { solved: "Clean cut. Module defused.", strike: "Wrong wire. Strike!" } as const
 
 function OperatorPanel({ code, view }: { readonly code: string; readonly view: ViewOf<"operator"> }) {
@@ -101,6 +103,11 @@ function OperatorPanel({ code, view }: { readonly code: string; readonly view: V
   const { error, run } = useMutationError()
   const [feedback, setFeedback] = useState<keyof typeof CUT_FEEDBACK | null>(null)
   const [cutting, setCutting] = useState(false)
+  useEffect(() => {
+    if (!feedback) return
+    const id = setTimeout(() => setFeedback(null), FEEDBACK_MS)
+    return () => clearTimeout(id)
+  }, [feedback])
   const cut = async (module: number, wire: number) => {
     setCutting(true)
     setFeedback(null)

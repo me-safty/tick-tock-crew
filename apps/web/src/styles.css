@@ -199,8 +199,13 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
 .match-header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
 .match-header > div { flex: 1; }
 .match-header .led.big { margin-top: 0; }
-.led.urgent { animation: blink 1s steps(2) infinite; }
+.led.urgent { border-color: var(--red); box-shadow: 0 0 14px rgb(255 77 79 / 0.55); }
 @keyframes blink { 50% { opacity: 0.45; } }
+@keyframes strike-pop { 0% { transform: scale(2.4); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: no-preference) {
+  .led.urgent { animation: blink 1s steps(2) infinite; }
+  .strike.latest { display: inline-block; animation: strike-pop 0.5s ease-out; }
+}
 
 .strikes { display: inline-flex; align-items: center; gap: 6px; }
 .strikes .eyebrow { margin-right: 4px; }
@@ -215,7 +220,8 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
 .tag.defused { --accent: var(--green); }
 
 .wires { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.wire { display: grid; grid-template-columns: 1.5rem 1fr 4.5rem auto; align-items: center; gap: 10px; min-height: 42px; }
+.wire { display: grid; grid-template-columns: 1.5rem 1fr 4.5rem 6.5rem; align-items: center; gap: 10px; min-height: 42px; }
+.wire .button { width: 100%; padding-inline: 8px; }
 .wire-number { font-family: var(--mono); color: var(--muted); text-align: right; }
 .wire-label { color: var(--muted); font-size: 0.85rem; text-transform: capitalize; }
 .insulation { height: 10px; border-radius: 5px; border: 1px solid rgb(255 255 255 / 0.15); }
