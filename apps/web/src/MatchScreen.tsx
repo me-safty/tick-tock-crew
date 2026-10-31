@@ -1,56 +1,149 @@
 import { api } from "@tick-tock-crew/backend/api"
 import { MAX_STRIKES } from "@tick-tock-crew/rules"
 import { useMutation, useQuery } from "convex/react"
-import type { FunctionReturnType } from "convex/server"
 import { lazy, Suspense, useEffect, useState } from "react"
+import { formatClock, secondsLeft, URGENT_SECONDS } from "./clock"
 import { useMutationError } from "./errors"
 import { sessionId } from "./guest"
-import { ROLE_INFO, type Lobby } from "./roles"
+import { type Lobby, type Match, ROLE_INFO, type RoleView, type ViewOf, type WireRef } from "./roles"
 import { navigate } from "./router"
 
-const Scene = lazy(() => import("./Scene").then((module) => ({ default: module.Scene })))
+/** Starts downloading the 3D scene, so the lobby can fetch it before the match begins. */
+export const preloadScene = () => import("./scene/Scene")
 
-type Match = NonNullable<FunctionReturnType<typeof api.match.view>>
-type RoleView = NonNullable<Match["view"]>
-type ViewOf<R extends RoleView["role"]> = Extract<RoleView, { role: R }>
+const Scene = lazy(() => preloadScene().then((module) => ({ default: module.Scene })))
+
+/** How long the explosion or the relief plays before the end screen. */
+const FINALE_MS = 2600
 
 export function MatchScreen({ lobby }: { readonly lobby: Lobby }) {
   const match = useQuery(api.match.view, { code: lobby.code, sessionId })
   if (!match) return null
-  if (match.status !== "playing") return <MatchOver match={match} />
+  return <MatchInPlay code={lobby.code} match={match} />
+}
+
+function MatchInPlay({ code, match }: { readonly code: string; readonly match: Match }) {
+  // A room that was already over when it opened skips straight to the end screen.
+  const [sawPlaying] = useState(match.status === "playing")
+  const [finaleDone, setFinaleDone] = useState(false)
+  const [manualOpen, setManualOpen] = useState(true)
+  const operator = useCutWire(code)
+  const ended = match.status !== "playing"
+  useEffect(() => {
+    if (!ended) return
+    const id = setTimeout(() => setFinaleDone(true), FINALE_MS)
+    return () => clearTimeout(id)
+  }, [ended])
+  const finale = ended && sawPlaying && !finaleDone
+  const role = match.view?.role ?? "spectator"
   return (
-    <div className="match">
-      <Suspense fallback={null}>
-        <Scene />
+    <div className={`match ${role}`}>
+      <Suspense fallback={<p className="scene-loading muted">Setting up the room…</p>}>
+        <Scene
+          match={match}
+          finale={finale}
+          pendingCut={operator.pending}
+          onCut={(ref) => void operator.cut(ref)}
+          onOpenManual={() => setManualOpen(true)}
+        />
       </Suspense>
-      <section className="panel match-card">
-        <header className="match-header">
-          <div>
-            <span className="eyebrow">Room {lobby.code}</span>
-            <h1>{match.view ? ROLE_INFO[match.view.role].title : "Spectator"}</h1>
+      {role === "scanner" && <div className="xray-lens" aria-hidden />}
+      <header className="hud">
+        <div className="hud-role">
+          <span className="eyebrow">Room {code}</span>
+          <h1>{match.view ? ROLE_INFO[match.view.role].title : "Spectator"}</h1>
+          {match.view?.role === "analyst" && <Defused view={match.view} />}
+        </div>
+        {!ended && (
+          <div className="hud-clock">
+            <Countdown endsAt={match.endsAt} />
+            <Strikes strikes={match.strikes} />
           </div>
-          <Countdown endsAt={match.endsAt} />
-          <Strikes strikes={match.strikes} />
-        </header>
-        {match.view ? <RolePanel code={lobby.code} view={match.view} /> : <p className="muted">You don't hold a seat in this match.</p>}
-      </section>
+        )}
+      </header>
+      {!ended && (
+        <footer className="hud-hint">
+          {operator.feedback && (
+            <p className={`feedback ${operator.feedback}`} role="status">
+              {CUT_FEEDBACK[operator.feedback]}
+            </p>
+          )}
+          {operator.error && (
+            <p className="error" role="alert">
+              {operator.error}
+            </p>
+          )}
+          <Hint view={match.view} manualOpen={manualOpen} onOpenManual={() => setManualOpen(true)} />
+        </footer>
+      )}
+      {match.view?.role === "analyst" && manualOpen && !ended && (
+        <ManualSheet manual={match.view.manual} onClose={() => setManualOpen(false)} />
+      )}
+      {finale && <div className={`finale-flash ${match.status}`} aria-hidden />}
+      {ended && !finale && <MatchOver match={match} />}
     </div>
   )
 }
 
-function RolePanel({ code, view }: { readonly code: string; readonly view: RoleView }) {
+const FEEDBACK_MS = 4000
+const CUT_FEEDBACK = { solved: "Clean cut. Module defused.", strike: "Wrong wire. Strike!" } as const
+
+function useCutWire(code: string) {
+  const cutWire = useMutation(api.match.cutWire)
+  const { error, run } = useMutationError()
+  const [feedback, setFeedback] = useState<keyof typeof CUT_FEEDBACK | null>(null)
+  const [pending, setPending] = useState<WireRef | null>(null)
+  useEffect(() => {
+    if (!feedback) return
+    const id = setTimeout(() => setFeedback(null), FEEDBACK_MS)
+    return () => clearTimeout(id)
+  }, [feedback])
+  const cut = async (ref: WireRef) => {
+    setPending(ref)
+    setFeedback(null)
+    setFeedback(await run(cutWire({ code, sessionId, ...ref })))
+    setPending(null)
+  }
+  return { pending, feedback, error, cut }
+}
+
+function Hint({
+  view,
+  manualOpen,
+  onOpenManual,
+}: {
+  readonly view: RoleView | null
+  readonly manualOpen: boolean
+  readonly onOpenManual: () => void
+}) {
+  if (!view) return <p className="hint">You don't hold a seat in this match.</p>
   switch (view.role) {
     case "operator":
-      return <OperatorPanel code={code} view={view} />
+      return <p className="hint">Drag to look around · Click a wire to cut it</p>
     case "scanner":
-      return <ScannerPanel view={view} />
+      return <p className="hint">Drag to look around · Read each wire's tag to your crew</p>
     case "analyst":
-      return <AnalystPanel view={view} />
+      return manualOpen ? (
+        <p className="hint">Drag to look around</p>
+      ) : (
+        <button type="button" className="button primary" onClick={onOpenManual}>
+          Open the manual
+        </button>
+      )
     default: {
       const _exhaustive: never = view
       return _exhaustive
     }
   }
+}
+
+function Defused({ view }: { readonly view: ViewOf<"analyst"> }) {
+  const defused = view.modules.filter((module) => module.solved).length
+  return (
+    <p className="muted">
+      Modules defused: {defused} of {view.modules.length}
+    </p>
+  )
 }
 
 function useNow(intervalMs: number) {
@@ -63,10 +156,10 @@ function useNow(intervalMs: number) {
 }
 
 function Countdown({ endsAt }: { readonly endsAt: number }) {
-  const seconds = Math.max(0, Math.ceil((endsAt - useNow(250)) / 1000))
-  const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
+  const seconds = secondsLeft(endsAt, useNow(250))
+  const clock = formatClock(seconds)
   return (
-    <span className={`led big${seconds <= 30 ? " urgent" : ""}`} role="timer" aria-label={`${clock} left`}>
+    <span className={`led big${seconds <= URGENT_SECONDS ? " urgent" : ""}`} role="timer" aria-label={`${clock} left`}>
       {clock}
     </span>
   )
@@ -86,112 +179,28 @@ function Strikes({ strikes }: { readonly strikes: number }) {
   )
 }
 
-function ModuleHeader({ title, solved }: { readonly title: string; readonly solved: boolean }) {
-  return (
-    <h2 className="module-title">
-      {title}
-      {solved && <span className="tag defused">defused</span>}
-    </h2>
-  )
-}
-
-const FEEDBACK_MS = 4000
-const CUT_FEEDBACK = { solved: "Clean cut. Module defused.", strike: "Wrong wire. Strike!" } as const
-
-function OperatorPanel({ code, view }: { readonly code: string; readonly view: ViewOf<"operator"> }) {
-  const cutWire = useMutation(api.match.cutWire)
-  const { error, run } = useMutationError()
-  const [feedback, setFeedback] = useState<keyof typeof CUT_FEEDBACK | null>(null)
-  const [cutting, setCutting] = useState(false)
+function ManualSheet({ manual, onClose }: { readonly manual: ViewOf<"analyst">["manual"]; readonly onClose: () => void }) {
   useEffect(() => {
-    if (!feedback) return
-    const id = setTimeout(() => setFeedback(null), FEEDBACK_MS)
-    return () => clearTimeout(id)
-  }, [feedback])
-  const cut = async (module: number, wire: number) => {
-    setCutting(true)
-    setFeedback(null)
-    setFeedback(await run(cutWire({ code, sessionId, module, wire })))
-    setCutting(false)
-  }
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose()
+    }
+    window.addEventListener("keydown", close)
+    return () => window.removeEventListener("keydown", close)
+  }, [onClose])
   return (
-    <>
-      <p className="serial">
-        <span className="eyebrow">Serial number</span>
-        <span className="mono">{view.serial}</span>
-      </p>
-      {view.modules.map((module, moduleIndex) => (
-        <section key={moduleIndex} className="module">
-          <ModuleHeader title="Hidden wires" solved={module.solved} />
-          <ol className="wires">
-            {module.wires.map((wire, wireIndex) => (
-              <li key={wireIndex} className={`wire${wire.cut ? " cut" : ""}`}>
-                <span className="wire-number">{wireIndex + 1}</span>
-                <span className={`insulation ${wire.color}`} />
-                <span className="wire-label">{wire.color}</span>
-                <button
-                  type="button"
-                  className="button"
-                  disabled={wire.cut || module.solved || cutting}
-                  onClick={() => void cut(moduleIndex, wireIndex)}
-                >
-                  {wire.cut ? "Cut" : `Cut wire ${wireIndex + 1}`}
-                </button>
-              </li>
-            ))}
-          </ol>
-        </section>
-      ))}
-      {feedback && (
-        <p className={`feedback ${feedback}`} role="status">
-          {CUT_FEEDBACK[feedback]}
-        </p>
-      )}
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
-    </>
-  )
-}
-
-function ScannerPanel({ view }: { readonly view: ViewOf<"scanner"> }) {
-  return (
-    <>
-      <p className="muted">X-ray: the tag under each wire's insulation, counted from the top.</p>
-      {view.modules.map((module, moduleIndex) => (
-        <section key={moduleIndex} className="module">
-          <ModuleHeader title="Hidden wires" solved={module.solved} />
-          <ol className="wires">
-            {module.wires.map((wire, wireIndex) => (
-              <li key={wireIndex} className={`wire${wire.cut ? " cut" : ""}`}>
-                <span className="wire-number">{wireIndex + 1}</span>
-                <span className="insulation xray" />
-                <span className="mono tag-code">
-                  {wire.tag.letter}
-                  {wire.tag.digit}
-                </span>
-                {wire.cut && <span className="muted">cut</span>}
-              </li>
-            ))}
-          </ol>
-        </section>
-      ))}
-    </>
-  )
-}
-
-function AnalystPanel({ view }: { readonly view: ViewOf<"analyst"> }) {
-  const defused = view.modules.filter((module) => module.solved).length
-  return (
-    <>
-      <p className="muted">
-        Modules defused: {defused} of {view.modules.length}
-      </p>
-      {view.manual.map((section) => (
+    <aside className="manual-sheet" aria-label="Field manual">
+      <header className="manual-sheet-header">
+        <div>
+          <span className="eyebrow">Tick Tock Crew</span>
+          <h2>Field manual</h2>
+        </div>
+        <button type="button" className="button" onClick={onClose}>
+          Close
+        </button>
+      </header>
+      {manual.map((section) => (
         <section key={section.title} className="module manual">
-          <h2 className="module-title">{section.title}</h2>
+          <h3 className="module-title">{section.title}</h3>
           {section.blocks.map((block, i) =>
             block.kind === "text" ? (
               <p key={i}>{block.text}</p>
@@ -218,7 +227,7 @@ function AnalystPanel({ view }: { readonly view: ViewOf<"analyst"> }) {
           )}
         </section>
       ))}
-    </>
+    </aside>
   )
 }
 
@@ -231,7 +240,7 @@ function MatchOver({ match }: { readonly match: Match }) {
       ? "Three strikes. The bomb went off."
       : "The timer ran out. The bomb went off."
   return (
-    <main className="screen">
+    <main className="screen match-over-screen">
       <section className={`panel match-over ${won ? "won" : "lost"}`}>
         <span className="eyebrow">{won ? "Bomb defused" : "Boom"}</span>
         <h1>
