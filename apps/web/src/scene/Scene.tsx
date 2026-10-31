@@ -2,6 +2,8 @@ import { Canvas } from "@react-three/fiber"
 import type { Match, WireRef } from "../roles"
 import { Bomb } from "./Bomb"
 import { Booth } from "./Booth"
+import { Finale } from "./Finale"
+import { BOMB_POSITION } from "./layout"
 import type { Seat } from "./look"
 import { usePrefersReducedMotion } from "./motion"
 import { SeatCamera } from "./SeatCamera"
@@ -38,6 +40,7 @@ export function Scene({ match, finale, pendingCut, onCut, onOpenManual }: SceneP
       <directionalLight position={[3, 5, 4]} intensity={1.5} color="#fff1dc" />
       <SeatCamera seat={seat} shaking={ending === "lost" && !reducedMotion} />
       <RoleSet match={match} pendingCut={pendingCut} onCut={onCut} onOpenManual={onOpenManual} />
+      {ending && <Finale outcome={ending} origin={view && view.role !== "analyst" ? BOMB_POSITION : null} />}
     </Canvas>
   )
 }
