@@ -1,0 +1,23 @@
+{
+  "name": "tick-tock-crew",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.4",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "catalog": {
+    "convex": "1.49.0",
+    "effect": "4.1.0",
+    "@effect/vitest": "4.1.0",
+    "typescript": "6.0.3",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  },
+  "scripts": {
+    "dev": "bun run --parallel --filter '*' dev",
+    "test": "bun run --filter '*' test",
+    "typecheck": "bun run --filter '*' typecheck"
+  }
+}
