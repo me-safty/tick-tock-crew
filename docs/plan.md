@@ -1,0 +1,74 @@
+# Tick Tock Crew — plan
+
+Original 3-player co-op bomb-defusal web game, built for play with friends. Same genre loop as other defusal games (timer, modules, strikes, asymmetric information, talk it out), but with our own roles, modules, art and rules. Do not copy names, roles, puzzles, rules or assets from existing games.
+
+## Game
+
+| Role | Can | Can't |
+| --- | --- | --- |
+| **Operator** | See and touch the bomb | Read the manual, see internals |
+| **Analyst** | Read the manual | See the bomb |
+| **Scanner** | See internals (X-ray, gauges, waveforms) | Touch anything |
+
+- Exactly 3 players, one per role. Fixed seats; camera can look around (no walking).
+- A match: one bomb generated from a seed with all 4 modules, 5-minute timer (difficulty presets change timer and module complexity), 3 strikes.
+- Guests: nickname + anonymous sessionId in localStorage, join by 4-letter room code. Lobby: claim a seat, ready up; match starts when all 3 seats are ready.
+- If a player disconnects mid-match, the match pauses until they rejoin their seat.
+
+### Modules (MVP)
+
+| Module | Operator | Scanner | Analyst |
+| --- | --- | --- | --- |
+| Hidden wires | wire colors; cuts wires | serial tags under insulation | cut rules (color × tag) |
+| Glyph keypad | 4 symbols; presses keys | which key is live | glyph tables → press order |
+| Pressure valve (real-time) | holds/releases valve | live pressure gauge | safe release band for this bomb |
+| Frequency dial | turns dial; submits | waveform overlay | waveform shape → frequency |
+
+Glyphs and rule tables are our own designs.
+
+## Stack
+
+- **Bun** workspaces (no Turborepo). One pinned `effect` 4.x version shared by all packages.
+- **apps/web** — Vite + React SPA, React Three Fiber + drei, Convex React client, WebRTC voice. Assets: code-built primitives + Kenney CC0 models, stylized toon look.
+- **packages/backend** — `convex/` (schema, functions); exports the generated `api`. Convex Cloud.
+- **packages/rules** — pure Effect 4.x game logic shared by client and server: seeded PRNG, `generateBomb(seed, difficulty)`, `viewFor(bomb, role)`, action validation, valve simulation.
+- **Tests** — Vitest everywhere, run via `bun run test` (convex-test needs Vite's `import.meta.glob`, so not `bun test`). `@effect/vitest` for rules, `convex-test` for key mutations (cut wire, strike, explode, win).
+- **Effect in Convex** — plain Convex handlers with `v` validators call into `packages/rules` (`Effect.runSync`), mapping tagged errors to `ConvexError` or strikes. No Confect. Keep Effect logging/clock reads out of queries so they stay cacheable.
+- Hosting: static Vite build on a static host + Convex Cloud.
+
+## Data model (sketch)
+
+```
+rooms     code, status: lobby|playing|paused|won|lost, seed, difficulty,
+          endsAt, remainingMs (when paused), strikes, explodeJobId
+seats     roomId, role, sessionId, name, ready
+modules   roomId, index, kind, solved, progress (cuts, presses, valve events)
+pings     roomId, fromRole, target, createdAt
+signals   roomId, fromRole, toRole, kind: offer|answer|ice, payload
+presence  @convex-dev/presence component
+```
+
+## Key flows
+
+- **Hidden info:** server-filtered views. `match.view` resolves the caller's seat and returns only `viewFor(bomb, role)`. The full bomb is regenerated from the seed server-side and never sent.
+- **Timer:** `start` sets `endsAt` and `scheduler.runAt(endsAt, explode)`; clients render the countdown locally; `explode` no-ops unless still playing.
+- **Pause:** presence detects a drop → cancel the explode job, store `remainingMs`; resume reschedules.
+- **Valve:** pressure is a pure function of (seed, start, hold/release events). Clients animate it in `useFrame` using a server-clock offset (from a mutation returning `Date.now()`); the release mutation validates. Generous windows (~100 ms latency).
+- **Voice:** 3-way P2P WebRTC mesh; signaling via the `signals` table (filtered by recipient, deleted after read); Cloudflare TURN credentials minted by a Convex action.
+- **Pings:** point-at pings and quick emotes synced through Convex.
+
+## Milestones
+
+1. **Scaffold** — Bun workspace, Vite + R3F app, Convex in packages/backend, rules package, Vitest.
+2. **Lobby** — create/join by code, seat claim, ready, presence.
+3. **Rules core + wires** — PRNG, bomb gen, role views, strikes, timer, win/explode, with tests.
+4. **3D scene** — table + bomb from primitives and Kenney CC0 props, seat cameras, wire interaction, Analyst manual UI, Scanner X-ray.
+5. **Other modules** — keypad, dial, valve (clock offset).
+6. **Voice + pings** — WebRTC mesh, Cloudflare TURN, pings and emotes.
+7. **Polish** — pause/reconnect, difficulty presets, deploy.
+
+## Risks
+
+- WebRTC is the hardest to debug; it lands late, so play over Discord until then.
+- Guest sessionIds are spoofable — fine for friends, not public play.
+- Valve feel depends on clock-offset accuracy; fallback is a wider window.
