@@ -26,8 +26,15 @@ async function loadMatch(ctx: QueryCtx, room: MatchRoom) {
   return { bomb, modules, state }
 }
 
-function endedRoom(room: PlayingRoom, status: Exclude<MatchStatus, "playing">, strikes: number) {
-  const { code, hostSessionId, seed, difficulty, endsAt } = room
+function endedRoom({
+  room: { code, hostSessionId, seed, difficulty, endsAt },
+  status,
+  strikes,
+}: {
+  readonly room: PlayingRoom
+  readonly status: Exclude<MatchStatus, "playing">
+  readonly strikes: number
+}) {
   return { code, hostSessionId, seed, difficulty, endsAt, strikes, status }
 }
 
@@ -37,7 +44,7 @@ export const explode = internalMutation({
   handler: async (ctx, { roomId }) => {
     const room = await ctx.db.get("rooms", roomId)
     if (room?.status !== "playing") return null
-    await ctx.db.replace("rooms", roomId, endedRoom(room, "lost", room.strikes))
+    await ctx.db.replace("rooms", roomId, endedRoom({ room, status: "lost", strikes: room.strikes }))
     return null
   },
 })
@@ -135,7 +142,7 @@ export const cutWire = mutation({
       await ctx.db.patch("rooms", room._id, { strikes: outcome.state.strikes })
     } else {
       await ctx.scheduler.cancel(room.explodeJobId)
-      await ctx.db.replace("rooms", room._id, endedRoom(room, status, outcome.state.strikes))
+      await ctx.db.replace("rooms", room._id, endedRoom({ room, status, strikes: outcome.state.strikes }))
     }
     return outcome.kind
   },
