@@ -217,6 +217,7 @@ function AnalystPanel({ view }: { readonly view: ViewOf<"analyst"> }) {
 
 function MatchOver({ match }: { readonly match: Match }) {
   const won = match.status === "won"
+  const who = match.view ? "You" : "The crew"
   const reason = won
     ? "Every module is defused. Nice work, crew."
     : match.strikes >= MAX_STRIKES
@@ -226,7 +227,9 @@ function MatchOver({ match }: { readonly match: Match }) {
     <main className="screen">
       <section className={`panel match-over ${won ? "won" : "lost"}`}>
         <span className="eyebrow">{won ? "Bomb defused" : "Boom"}</span>
-        <h1>{won ? "You won" : "You lost"}</h1>
+        <h1>
+          {who} {won ? "won" : "lost"}
+        </h1>
         <p>{reason}</p>
         <p className="muted">
           Strikes: {match.strikes} of {MAX_STRIKES}
