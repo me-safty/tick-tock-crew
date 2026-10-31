@@ -1,23 +1,10 @@
-import presenceTest from "@convex-dev/presence/test"
-import { convexTest } from "convex-test"
 import { afterEach, describe, expect, test, vi } from "vitest"
 import { api } from "./_generated/api"
-import schema from "./schema"
+import { goOnline, seatAll, setup } from "./test.setup"
 
-const modules = import.meta.glob("./**/*.ts")
-
-type T = Awaited<ReturnType<typeof setup>>["t"]
-
-function goOnline(t: T, code: string, sessionId: string) {
-  return t.mutation(api.presence.heartbeat, { roomId: code, userId: sessionId, sessionId: `tab-${sessionId}`, interval: 10_000 })
-}
-
-async function setup() {
-  const t = convexTest(schema, modules)
-  presenceTest.register(t)
-  const code = await t.mutation(api.rooms.createRoom, { sessionId: "host" })
-  return { t, code }
-}
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 describe("createRoom and joinRoom", () => {
   test("creates a 4-letter code without ambiguous letters", async () => {
@@ -88,19 +75,6 @@ describe("claimSeat", () => {
 })
 
 describe("startMatch", () => {
-  async function seatAll(t: T, code: string, ready: boolean) {
-    const players = [
-      { sessionId: "host", name: "Hana", role: "operator" },
-      { sessionId: "b", name: "Bo", role: "analyst" },
-      { sessionId: "c", name: "Cy", role: "scanner" },
-    ] as const
-    for (const p of players) {
-      await goOnline(t, code, p.sessionId)
-      await t.mutation(api.rooms.claimSeat, { code, ...p })
-      await t.mutation(api.rooms.setReady, { code, sessionId: p.sessionId, ready })
-    }
-  }
-
   test("rejects when a seat is empty", async () => {
     const { t, code } = await setup()
     await goOnline(t, code, "host")
@@ -138,13 +112,18 @@ describe("startMatch", () => {
     )
   })
 
-  test("starts with a seed and then locks the seats", async () => {
+  test("starts a 5-minute match with a seed, a module per bomb module, and then locks the seats", async () => {
     const { t, code } = await setup()
     await seatAll(t, code, true)
+    const startedAt = Date.now()
     await t.mutation(api.rooms.startMatch, { code, sessionId: "host" })
 
     const room = await t.run((ctx) => ctx.db.query("rooms").first())
-    expect(room).toMatchObject({ status: "playing", seed: expect.any(Number) })
+    expect(room).toMatchObject({ status: "playing", seed: expect.any(Number), strikes: 0 })
+    expect(room?.status === "playing" && room.endsAt - startedAt).toBeGreaterThanOrEqual(5 * 60_000)
+    expect(room?.status === "playing" && room.endsAt - Date.now()).toBeLessThanOrEqual(5 * 60_000)
+    const modules = await t.run((ctx) => ctx.db.query("modules").collect())
+    expect(modules).toMatchObject([{ index: 0, kind: "wires", solved: false, progress: { cut: [] } }])
     await expect(t.mutation(api.rooms.leaveSeat, { code, sessionId: "b" })).rejects.toThrow(
       "The match has already started",
     )
@@ -152,10 +131,6 @@ describe("startMatch", () => {
 })
 
 describe("presence", () => {
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
   test("shows a seat online while its player heartbeats and offline after they leave", async () => {
     const { t, code } = await setup()
     await t.mutation(api.rooms.claimSeat, { code, sessionId: "a", name: "Ada", role: "operator" })

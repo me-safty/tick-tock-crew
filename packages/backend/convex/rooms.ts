@@ -1,6 +1,7 @@
 import { Presence } from "@convex-dev/presence"
+import { type Difficulty, generateBomb, initialState } from "@tick-tock-crew/rules"
 import { ConvexError, v } from "convex/values"
-import { components } from "./_generated/api"
+import { components, internal } from "./_generated/api"
 import type { Doc, Id } from "./_generated/dataModel"
 import { mutation, query, type QueryCtx } from "./_generated/server"
 import { role } from "./schema"
@@ -14,6 +15,8 @@ const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ"
 const CODE_LENGTH = 4
 const MAX_CODE_ATTEMPTS = 10
 const MAX_NAME_LENGTH = 20
+const MATCH_DURATION_MS = 5 * 60_000
+const DIFFICULTY: Difficulty = "normal"
 
 function randomCode() {
   return Array.from({ length: CODE_LENGTH }, () =>
@@ -21,7 +24,7 @@ function randomCode() {
   ).join("")
 }
 
-function findRoom(ctx: QueryCtx, code: string) {
+export function findRoom(ctx: QueryCtx, code: string) {
   return ctx.db
     .query("rooms")
     .withIndex("by_code", (q) => q.eq("code", code.trim().toUpperCase()))
@@ -47,7 +50,7 @@ function roomSeats(ctx: QueryCtx, roomId: Id<"rooms">) {
     .take(ROLES.length)
 }
 
-function findSeat(ctx: QueryCtx, { roomId, sessionId }: Pick<Doc<"seats">, "roomId" | "sessionId">) {
+export function findSeat(ctx: QueryCtx, { roomId, sessionId }: Pick<Doc<"seats">, "roomId" | "sessionId">) {
   return ctx.db
     .query("seats")
     .withIndex("by_room_and_session", (q) => q.eq("roomId", roomId).eq("sessionId", sessionId))
@@ -148,7 +151,20 @@ export const startMatch = mutation({
     if (seats.length < ROLES.length || seats.some((seat) => !seat.ready || !online.has(seat.sessionId))) {
       throw new ConvexError("All 3 players must be seated, online and ready")
     }
-    await ctx.db.patch("rooms", room._id, { status: "playing", seed: Math.floor(Math.random() * 2 ** 32) })
+    const seed = Math.floor(Math.random() * 2 ** 32)
+    const endsAt = Date.now() + MATCH_DURATION_MS
+    const explodeJobId = await ctx.scheduler.runAt(endsAt, internal.match.explode, { roomId: room._id })
+    await ctx.db.patch("rooms", room._id, {
+      status: "playing",
+      seed,
+      difficulty: DIFFICULTY,
+      endsAt,
+      strikes: 0,
+      explodeJobId,
+    })
+    for (const [index, { kind, solved, progress }] of initialState(generateBomb(seed, DIFFICULTY)).modules.entries()) {
+      await ctx.db.insert("modules", { roomId: room._id, index, kind, solved, progress: { cut: [...progress.cut] } })
+    }
     return null
   },
 })
@@ -167,7 +183,7 @@ export const lobby = query({
     v.null(),
     v.object({
       code: v.string(),
-      status: v.union(v.literal("lobby"), v.literal("playing")),
+      status: v.union(v.literal("lobby"), v.literal("playing"), v.literal("won"), v.literal("lost")),
       isHost: v.boolean(),
       onlineCount: v.number(),
       seats: v.array(v.object({ role, player: v.union(v.null(), player) })),
