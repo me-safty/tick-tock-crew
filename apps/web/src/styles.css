@@ -114,6 +114,7 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
 }
 .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 
+.create { display: grid; gap: 18px; }
 .join { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
 .code-input { font-family: var(--mono); letter-spacing: 0.3em; text-transform: uppercase; }
 
@@ -164,7 +165,8 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
 .player.empty { color: var(--muted); font-weight: 400; font-style: italic; }
 .status { font-family: var(--mono); font-size: 0.85rem; color: var(--muted); }
 .status.ready { color: var(--green); }
-.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; min-height: 42px; }
+.seat.mine { box-shadow: inset 0 0 0 1px var(--accent); }
 
 .tag {
   font-size: 0.7rem;
@@ -187,3 +189,11 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
 .match { position: fixed; inset: 0; }
 .match-card { position: absolute; top: 24px; left: 24px; width: min(360px, calc(100% - 48px)); background: rgb(29 32 41 / 0.92); }
 .crew { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+
+@media (max-width: 640px) {
+  .screen { padding: 20px 12px; }
+  .led.big { font-size: 1.8rem; }
+  .seat { min-height: 0; }
+  .lobby-footer { position: sticky; bottom: 0; padding: 12px 0; background: var(--bg); }
+  .match-card { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; }
+}

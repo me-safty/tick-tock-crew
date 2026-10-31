@@ -21,6 +21,11 @@ export function Home() {
     if (roomCode) navigate(roomPath(roomCode))
   }
 
+  const create = (event: FormEvent) => {
+    event.preventDefault()
+    void enter(createRoom({ sessionId }))
+  }
+
   const join = (event: FormEvent) => {
     event.preventDefault()
     void enter(joinRoom({ code }))
@@ -35,25 +40,21 @@ export function Home() {
           <p className="muted">Three players, one bomb, and nobody sees the whole picture.</p>
         </header>
 
-        <label className="field">
-          <span>Nickname</span>
-          <input
-            value={nickname}
-            onChange={(event) => setNickname(event.target.value)}
-            maxLength={20}
-            placeholder="What should the crew call you?"
-            autoFocus
-          />
-        </label>
-
-        <button
-          type="button"
-          className="button primary"
-          disabled={!hasNickname || busy}
-          onClick={() => void enter(createRoom({ sessionId }))}
-        >
-          Create room
-        </button>
+        <form className="create" onSubmit={create}>
+          <label className="field">
+            <span>Nickname</span>
+            <input
+              value={nickname}
+              onChange={(event) => setNickname(event.target.value)}
+              maxLength={20}
+              placeholder="What should the crew call you?"
+              autoFocus
+            />
+          </label>
+          <button type="submit" className="button primary" disabled={!hasNickname || busy}>
+            Create room
+          </button>
+        </form>
 
         <div className="divider">or join a crew</div>
 
@@ -65,6 +66,9 @@ export function Home() {
             onChange={(event) => setCode(event.target.value.toUpperCase())}
             maxLength={4}
             placeholder="CODE"
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
           />
           <button type="submit" className="button" disabled={!hasNickname || busy || code.length !== 4}>
             Join

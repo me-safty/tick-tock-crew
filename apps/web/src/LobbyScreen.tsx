@@ -15,7 +15,10 @@ export function LobbyScreen({ lobby }: { readonly lobby: Lobby }) {
 
   const room = { code: lobby.code, sessionId }
   const seated = lobby.seats.some((seat) => seat.player?.isYou)
-  const allReady = lobby.seats.every((seat) => seat.player?.ready && seat.player.online)
+  const waitingFor = lobby.seats
+    .filter((seat) => !(seat.player?.ready && seat.player.online))
+    .map((seat) => seat.player?.name ?? `an open ${ROLE_INFO[seat.role].title} seat`)
+  const allReady = waitingFor.length === 0
 
   return (
     <main className="screen lobby">
@@ -57,7 +60,7 @@ export function LobbyScreen({ lobby }: { readonly lobby: Lobby }) {
       </ul>
 
       <footer className="lobby-footer">
-        {lobby.isHost ? (
+        {lobby.isHost && (
           <button
             type="button"
             className="button primary"
@@ -66,10 +69,14 @@ export function LobbyScreen({ lobby }: { readonly lobby: Lobby }) {
           >
             Start match
           </button>
-        ) : (
-          <p className="muted">The host starts the match once everyone is ready.</p>
         )}
-        {!allReady && <p className="muted">All 3 players must be seated, online and ready.</p>}
+        <p className="muted">
+          {allReady
+            ? lobby.isHost
+              ? "Everyone is ready."
+              : "Everyone is ready. Waiting for the host to start."
+            : `Waiting for ${waitingFor.join(", ")}.`}
+        </p>
         {error && (
           <p className="error" role="alert">
             {error}
@@ -93,7 +100,7 @@ function SeatCard({ seat, seated, canClaim, onClaim, onLeave, onReady }: SeatCar
   const { title, blurb } = ROLE_INFO[seat.role]
   const { player } = seat
   return (
-    <li className={`seat ${seat.role}${player && !player.online ? " offline" : ""}`}>
+    <li className={`seat ${seat.role}${player?.isYou ? " mine" : ""}${player && !player.online ? " offline" : ""}`}>
       <span className="eyebrow">{title}</span>
       <p className="blurb">{blurb}</p>
       {player ? (
@@ -107,24 +114,29 @@ function SeatCard({ seat, seated, canClaim, onClaim, onLeave, onReady }: SeatCar
           <p className={`status ${player.ready ? "ready" : ""}`}>
             {player.online ? (player.ready ? "Ready" : "Not ready") : "Offline"}
           </p>
-          {player.isYou ? (
-            <div className="actions">
-              <button type="button" className="button primary" onClick={() => onReady(!player.ready)}>
-                {player.ready ? "Not ready" : "Ready"}
-              </button>
-              <button type="button" className="button" onClick={onLeave}>
-                Leave seat
-              </button>
-            </div>
-          ) : (
-            !player.online && (
-              <div className="actions">
+          <div className="actions">
+            {player.isYou ? (
+              <>
+                <button
+                  type="button"
+                  className={player.ready ? "button" : "button primary"}
+                  aria-pressed={player.ready}
+                  onClick={() => onReady(!player.ready)}
+                >
+                  {player.ready ? "Cancel ready" : "Ready"}
+                </button>
+                <button type="button" className="button" onClick={onLeave}>
+                  Leave seat
+                </button>
+              </>
+            ) : (
+              !player.online && (
                 <button type="button" className="button" disabled={!canClaim} onClick={onClaim}>
                   Take over seat
                 </button>
-              </div>
-            )
-          )}
+              )
+            )}
+          </div>
         </>
       ) : (
         <>
@@ -140,16 +152,22 @@ function SeatCard({ seat, seated, canClaim, onClaim, onLeave, onReady }: SeatCar
   )
 }
 
+const SHARE_LABELS = { idle: "Copy invite link", copied: "Link copied", failed: "Copy failed, share the code" }
+
 function ShareLink() {
-  const [copied, setCopied] = useState(false)
+  const [status, setStatus] = useState<keyof typeof SHARE_LABELS>("idle")
+  const show = (next: typeof status) => {
+    setStatus(next)
+    setTimeout(() => setStatus("idle"), 2000)
+  }
   const copy = () =>
     void navigator.clipboard.writeText(window.location.href).then(
-      () => setCopied(true),
-      () => setCopied(false),
+      () => show("copied"),
+      () => show("failed"),
     )
   return (
-    <button type="button" className="button share" onClick={copy}>
-      {copied ? "Link copied" : "Copy invite link"}
+    <button type="button" className="button share" onClick={copy} aria-live="polite">
+      {SHARE_LABELS[status]}
     </button>
   )
 }
