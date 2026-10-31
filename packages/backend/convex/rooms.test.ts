@@ -1,3 +1,4 @@
+import presenceTest from "@convex-dev/presence/test"
 import { convexTest } from "convex-test"
 import { describe, expect, test } from "vitest"
 import { api } from "./_generated/api"
@@ -7,6 +8,7 @@ const modules = import.meta.glob("./**/*.ts")
 
 async function setup() {
   const t = convexTest(schema, modules)
+  presenceTest.register(t)
   const code = await t.mutation(api.rooms.createRoom, { sessionId: "host" })
   return { t, code }
 }
@@ -47,7 +49,7 @@ describe("claimSeat", () => {
     expect(lobby?.seats).toEqual([
       { role: "operator", player: null },
       { role: "analyst", player: null },
-      { role: "scanner", player: { name: "Ada", ready: false, isHost: false, isYou: true } },
+      { role: "scanner", player: { name: "Ada", ready: false, online: false, isHost: false, isYou: true } },
     ])
   })
 
@@ -118,5 +120,35 @@ describe("startMatch", () => {
     await expect(t.mutation(api.rooms.leaveSeat, { code, sessionId: "b" })).rejects.toThrow(
       "The match has already started",
     )
+  })
+})
+
+describe("presence", () => {
+  test("shows a seat online while its player heartbeats and offline after they leave", async () => {
+    const { t, code } = await setup()
+    await t.mutation(api.rooms.claimSeat, { code, sessionId: "a", name: "Ada", role: "operator" })
+    const seatOnline = async () => {
+      const lobby = await t.query(api.rooms.lobby, { code, sessionId: "a" })
+      return { online: lobby?.seats[0]?.player?.online, count: lobby?.onlineCount }
+    }
+    expect(await seatOnline()).toEqual({ online: false, count: 0 })
+
+    const { sessionToken } = await t.mutation(api.presence.heartbeat, {
+      roomId: code.toLowerCase(),
+      userId: "a",
+      sessionId: "tab-1",
+      interval: 10_000,
+    })
+    expect(await seatOnline()).toEqual({ online: true, count: 1 })
+
+    await t.mutation(api.presence.disconnect, { sessionToken })
+    expect(await seatOnline()).toEqual({ online: false, count: 0 })
+  })
+
+  test("rejects heartbeats for unknown rooms", async () => {
+    const { t } = await setup()
+    await expect(
+      t.mutation(api.presence.heartbeat, { roomId: "ZZZZ0", userId: "a", sessionId: "tab-1", interval: 10_000 }),
+    ).rejects.toThrow("Room not found")
   })
 })

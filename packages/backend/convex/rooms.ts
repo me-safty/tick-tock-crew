@@ -1,7 +1,12 @@
+import { Presence } from "@convex-dev/presence"
 import { ConvexError, v } from "convex/values"
+import { components } from "./_generated/api"
 import type { Doc, Id } from "./_generated/dataModel"
 import { mutation, query, type QueryCtx } from "./_generated/server"
 import { role } from "./schema"
+
+// Presence rooms are keyed by room code and users by guest sessionId.
+export const presence = new Presence(components.presence)
 
 const ROLES = role.members.map((member) => member.value)
 // No I, L or O: they read like 1 and 0 when a code is shared aloud or in a chat.
@@ -23,7 +28,7 @@ function findRoom(ctx: QueryCtx, code: string) {
     .unique()
 }
 
-async function getRoom(ctx: QueryCtx, code: string) {
+export async function getRoom(ctx: QueryCtx, code: string) {
   const room = await findRoom(ctx, code)
   if (!room) throw new ConvexError("Room not found")
   return room
@@ -145,6 +150,7 @@ export const startMatch = mutation({
 const player = v.object({
   name: v.string(),
   ready: v.boolean(),
+  online: v.boolean(),
   isHost: v.boolean(),
   isYou: v.boolean(),
 })
@@ -157,6 +163,7 @@ export const lobby = query({
       code: v.string(),
       status: v.union(v.literal("lobby"), v.literal("playing")),
       isHost: v.boolean(),
+      onlineCount: v.number(),
       seats: v.array(v.object({ role, player: v.union(v.null(), player) })),
     }),
   ),
@@ -164,10 +171,12 @@ export const lobby = query({
     const room = await findRoom(ctx, code)
     if (!room) return null
     const seats = await roomSeats(ctx, room._id)
+    const online = new Set((await presence.listRoom(ctx, room.code, true)).map((p) => p.userId))
     return {
       code: room.code,
       status: room.status,
       isHost: room.hostSessionId === sessionId,
+      onlineCount: online.size,
       seats: ROLES.map((seatRole) => {
         const seat = seats.find((s) => s.role === seatRole)
         return {
@@ -176,6 +185,7 @@ export const lobby = query({
             ? {
                 name: seat.name,
                 ready: seat.ready,
+                online: online.has(seat.sessionId),
                 isHost: seat.sessionId === room.hostSessionId,
                 isYou: seat.sessionId === sessionId,
               }

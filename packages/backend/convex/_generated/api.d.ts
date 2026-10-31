@@ -9,6 +9,7 @@
  */
 
 import type * as health from "../health.js";
+import type * as presence from "../presence.js";
 import type * as rooms from "../rooms.js";
 
 import type {
@@ -19,6 +20,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   health: typeof health;
+  presence: typeof presence;
   rooms: typeof rooms;
 }>;
 
