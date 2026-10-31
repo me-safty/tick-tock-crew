@@ -1,6 +1,6 @@
 import presenceTest from "@convex-dev/presence/test"
 import { convexTest } from "convex-test"
-import { describe, expect, test } from "vitest"
+import { afterEach, describe, expect, test, vi } from "vitest"
 import { api } from "./_generated/api"
 import schema from "./schema"
 
@@ -152,6 +152,10 @@ describe("startMatch", () => {
 })
 
 describe("presence", () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   test("shows a seat online while its player heartbeats and offline after they leave", async () => {
     const { t, code } = await setup()
     await t.mutation(api.rooms.claimSeat, { code, sessionId: "a", name: "Ada", role: "operator" })
@@ -166,6 +170,18 @@ describe("presence", () => {
 
     await t.mutation(api.presence.disconnect, { sessionToken })
     expect(await seatOnline()).toEqual({ online: false, count: 0 })
+  })
+
+  test("times out a session that asked for a huge heartbeat interval", async () => {
+    vi.useFakeTimers()
+    const { t, code } = await setup()
+    await t.mutation(api.rooms.claimSeat, { code, sessionId: "a", name: "Ada", role: "operator" })
+    await t.mutation(api.presence.heartbeat, { roomId: code, userId: "a", sessionId: "tab-a", interval: 1e12 })
+
+    vi.advanceTimersByTime(2 * 60_000)
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    const lobby = await t.query(api.rooms.lobby, { code, sessionId: "a" })
+    expect(lobby?.seats[0]?.player?.online).toBe(false)
   })
 
   test("rejects heartbeats for unknown rooms", async () => {

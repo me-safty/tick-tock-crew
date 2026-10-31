@@ -4,12 +4,15 @@ import { getRoom, presence } from "./rooms"
 
 // The hook's beforeunload beacon calls `presence:disconnect`, so these must live in convex/presence.ts.
 
+// A session times out after 2.5 intervals; the cap stops a client from staying "online" forever.
+const MAX_HEARTBEAT_INTERVAL_MS = 30_000
+
 export const heartbeat = mutation({
   args: { roomId: v.string(), userId: v.string(), sessionId: v.string(), interval: v.number() },
   returns: v.object({ roomToken: v.string(), sessionToken: v.string() }),
   handler: async (ctx, { roomId, userId, sessionId, interval }) => {
     const room = await getRoom(ctx, roomId)
-    return presence.heartbeat(ctx, room.code, userId, sessionId, interval)
+    return presence.heartbeat(ctx, room.code, userId, sessionId, Math.min(interval, MAX_HEARTBEAT_INTERVAL_MS))
   },
 })
 
