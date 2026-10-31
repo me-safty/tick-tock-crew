@@ -54,6 +54,10 @@ function findSeat(ctx: QueryCtx, { roomId, sessionId }: Pick<Doc<"seats">, "room
     .unique()
 }
 
+async function onlineSessions(ctx: QueryCtx, code: string) {
+  return new Set((await presence.listRoom(ctx, code, true)).map((p) => p.userId))
+}
+
 function parseName(name: string) {
   const trimmed = name.trim()
   if (trimmed.length === 0 || trimmed.length > MAX_NAME_LENGTH) {
@@ -92,9 +96,10 @@ export const claimSeat = mutation({
       .query("seats")
       .withIndex("by_room_and_role", (q) => q.eq("roomId", room._id).eq("role", args.role))
       .unique()
+    if (taken?.sessionId === args.sessionId) return null
     if (taken) {
-      if (taken.sessionId !== args.sessionId) throw new ConvexError("That seat is taken")
-      return null
+      if ((await onlineSessions(ctx, room.code)).has(taken.sessionId)) throw new ConvexError("That seat is taken")
+      await ctx.db.delete("seats", taken._id)
     }
     const current = await findSeat(ctx, { roomId: room._id, sessionId: args.sessionId })
     if (current) await ctx.db.delete("seats", current._id)
@@ -171,7 +176,7 @@ export const lobby = query({
     const room = await findRoom(ctx, code)
     if (!room) return null
     const seats = await roomSeats(ctx, room._id)
-    const online = new Set((await presence.listRoom(ctx, room.code, true)).map((p) => p.userId))
+    const online = await onlineSessions(ctx, room.code)
     return {
       code: room.code,
       status: room.status,

@@ -6,6 +6,12 @@ import schema from "./schema"
 
 const modules = import.meta.glob("./**/*.ts")
 
+type T = Awaited<ReturnType<typeof setup>>["t"]
+
+function goOnline(t: T, code: string, sessionId: string) {
+  return t.mutation(api.presence.heartbeat, { roomId: code, userId: sessionId, sessionId: `tab-${sessionId}`, interval: 10_000 })
+}
+
 async function setup() {
   const t = convexTest(schema, modules)
   presenceTest.register(t)
@@ -31,12 +37,22 @@ describe("createRoom and joinRoom", () => {
 })
 
 describe("claimSeat", () => {
-  test("rejects a seat another session holds", async () => {
+  test("rejects a seat another online session holds", async () => {
     const { t, code } = await setup()
+    await goOnline(t, code, "a")
     await t.mutation(api.rooms.claimSeat, { code, sessionId: "a", name: "Ada", role: "operator" })
     await expect(
       t.mutation(api.rooms.claimSeat, { code, sessionId: "b", name: "Bo", role: "operator" }),
     ).rejects.toThrow("That seat is taken")
+  })
+
+  test("lets another session take the seat of an offline player", async () => {
+    const { t, code } = await setup()
+    await t.mutation(api.rooms.claimSeat, { code, sessionId: "a", name: "Ada", role: "operator" })
+    await t.mutation(api.rooms.claimSeat, { code, sessionId: "b", name: "Bo", role: "operator" })
+
+    const lobby = await t.query(api.rooms.lobby, { code, sessionId: "a" })
+    expect(lobby?.seats[0]?.player).toMatchObject({ name: "Bo", isYou: false })
   })
 
   test("moves a session to the new seat instead of holding two", async () => {
@@ -72,7 +88,7 @@ describe("claimSeat", () => {
 })
 
 describe("startMatch", () => {
-  async function seatAll(t: Awaited<ReturnType<typeof setup>>["t"], code: string, ready: boolean) {
+  async function seatAll(t: T, code: string, ready: boolean) {
     const players = [
       { sessionId: "host", name: "Hana", role: "operator" },
       { sessionId: "b", name: "Bo", role: "analyst" },
@@ -133,12 +149,7 @@ describe("presence", () => {
     }
     expect(await seatOnline()).toEqual({ online: false, count: 0 })
 
-    const { sessionToken } = await t.mutation(api.presence.heartbeat, {
-      roomId: code.toLowerCase(),
-      userId: "a",
-      sessionId: "tab-1",
-      interval: 10_000,
-    })
+    const { sessionToken } = await goOnline(t, code.toLowerCase(), "a")
     expect(await seatOnline()).toEqual({ online: true, count: 1 })
 
     await t.mutation(api.presence.disconnect, { sessionToken })

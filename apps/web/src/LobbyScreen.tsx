@@ -107,7 +107,7 @@ function SeatCard({ seat, seated, canClaim, onClaim, onLeave, onReady }: SeatCar
           <p className={`status ${player.ready ? "ready" : ""}`}>
             {player.online ? (player.ready ? "Ready" : "Not ready") : "Offline"}
           </p>
-          {player.isYou && (
+          {player.isYou ? (
             <div className="actions">
               <button type="button" className="button primary" onClick={() => onReady(!player.ready)}>
                 {player.ready ? "Not ready" : "Ready"}
@@ -116,6 +116,14 @@ function SeatCard({ seat, seated, canClaim, onClaim, onLeave, onReady }: SeatCar
                 Leave seat
               </button>
             </div>
+          ) : (
+            !player.online && (
+              <div className="actions">
+                <button type="button" className="button" disabled={!canClaim} onClick={onClaim}>
+                  Take over seat
+                </button>
+              </div>
+            )
           )}
         </>
       ) : (
