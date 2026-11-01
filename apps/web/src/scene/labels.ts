@@ -1,5 +1,7 @@
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { CanvasTexture, SRGBColorSpace } from "three"
+import { useLanguage } from "../i18n"
 
 type Draw = (context: CanvasRenderingContext2D, size: { width: number; height: number }) => void
 
@@ -32,5 +34,32 @@ export function useDrawnTexture({ width, height, key, draw }: { width: number; h
   return texture
 }
 
-export const MONO_FONT = '"SF Mono", ui-monospace, Menlo, Consolas, monospace'
-export const SANS_FONT = '"Avenir Next", "Segoe UI", system-ui, sans-serif'
+// The Arabic face only covers Arabic code points (see styles.css), so Latin text keeps the fonts after it.
+const ARABIC_FONT = '"IBM Plex Sans Arabic"'
+export const MONO_FONT = `${ARABIC_FONT}, "SF Mono", ui-monospace, Menlo, Consolas, monospace`
+export const SANS_FONT = `${ARABIC_FONT}, "Avenir Next", "Segoe UI", system-ui, sans-serif`
+
+let arabicFonts: Promise<unknown> | undefined
+const loadArabicFonts = () =>
+  (arabicFonts ??= Promise.all([600, 700].map((weight) => document.fonts.load(`${weight} 16px ${ARABIC_FONT}`, "ع"))))
+
+/**
+ * Label text in the player's language. A canvas draws with whichever font has loaded, so `key` also
+ * changes once the Arabic font arrives, to redraw labels drawn before it.
+ */
+export function useLabelText() {
+  const { t, i18n } = useTranslation()
+  const language = useLanguage()
+  const [arabicReady, setArabicReady] = useState(false)
+  useEffect(() => {
+    if (language !== "ar") return
+    let live = true
+    void loadArabicFonts().then(() => {
+      if (live) setArabicReady(true)
+    })
+    return () => {
+      live = false
+    }
+  }, [language])
+  return { t, direction: i18n.dir(language), key: `${language}|${arabicReady}` }
+}
