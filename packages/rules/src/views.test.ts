@@ -36,7 +36,7 @@ describe("viewFor", () => {
   it("shows the Analyst the manual and module progress, but nothing of the bomb itself", () => {
     const view = viewFor(bomb, state, "analyst")
     expect(Schema.is(AnalystView)(view)).toBe(true)
-    expect(view).toMatchObject({ modules: [{ kind: "wires", solved: false }], manual: [{ title: "Hidden wires" }] })
+    expect(view).toMatchObject({ modules: [{ kind: "wires", solved: false }], manual: [{ title: "wires.title" }] })
     expect(keysOf(view.modules)).toEqual(new Set(["kind", "solved"]))
   })
 

@@ -1,0 +1,155 @@
+{
+  "language": {
+    "name": "English",
+    "switch": "Switch to Arabic"
+  },
+  "common": {
+    "backHome": "Back to home",
+    "genericError": "Something went wrong. Try again.",
+    "crashTitle": "Something went wrong",
+    "crashBody": "The page hit an unexpected error."
+  },
+  "roles": {
+    "operator": {
+      "title": "Operator",
+      "blurb": "Sees and handles the bomb, but can't read the manual."
+    },
+    "analyst": {
+      "title": "Analyst",
+      "blurb": "Reads the manual, but never sees the bomb."
+    },
+    "scanner": {
+      "title": "Scanner",
+      "blurb": "Sees inside the bomb, but can't touch anything."
+    },
+    "spectator": "Spectator"
+  },
+  "home": {
+    "tagline": "Three players, one bomb, and nobody sees the whole picture.",
+    "nickname": "Nickname",
+    "nicknamePlaceholder": "What should the crew call you?",
+    "createRoom": "Create room",
+    "orJoin": "or join a crew",
+    "roomCode": "Room code",
+    "codePlaceholder": "CODE",
+    "join": "Join"
+  },
+  "room": {
+    "connecting": "Connecting…",
+    "notFound": "Room {{code}} not found",
+    "notFoundHint": "Check the code with whoever sent it."
+  },
+  "lobby": {
+    "roomCode": "Room code",
+    "online_one": "{{count}} online",
+    "online_other": "{{count}} online",
+    "yourNickname": "Your nickname",
+    "nicknamePlaceholder": "Pick one, then claim a seat",
+    "startMatch": "Start match",
+    "everyoneReady": "Everyone is ready.",
+    "waitingForHost": "Everyone is ready. Waiting for the host to start.",
+    "waitingFor": "Waiting for {{names}}.",
+    "openSeatOf": "an open {{role}} seat",
+    "share": {
+      "idle": "Copy invite link",
+      "copied": "Link copied",
+      "failed": "Copy failed, share the code"
+    },
+    "seat": {
+      "online": "Online",
+      "offline": "Offline",
+      "you": "you",
+      "host": "host",
+      "ready": "Ready",
+      "notReady": "Not ready",
+      "setReady": "Ready",
+      "cancelReady": "Cancel ready",
+      "leave": "Leave seat",
+      "takeOver": "Take over seat",
+      "open": "Open seat",
+      "switchHere": "Switch here",
+      "claim": "Claim seat"
+    }
+  },
+  "match": {
+    "room": "Room {{code}}",
+    "settingUp": "Setting up the room…",
+    "defused": "Modules defused: {{defused}} of {{total}}",
+    "timeLeft": "{{clock}} left",
+    "strikes": "Strikes",
+    "strikesLabel": "{{strikes}} of {{max}} strikes",
+    "xray": "X-RAY",
+    "feedback": {
+      "solved": "Clean cut. Module defused.",
+      "strike": "Wrong wire. Strike!"
+    },
+    "hint": {
+      "noSeat": "You don't hold a seat in this match.",
+      "operator": "Drag to look around · Click a wire to cut it",
+      "scanner": "Drag to look around · Read each wire's tag to your crew",
+      "analyst": "Drag to look around",
+      "openManual": "Open the manual"
+    },
+    "manual": {
+      "title": "Field manual",
+      "close": "Close"
+    },
+    "over": {
+      "wonEyebrow": "Bomb defused",
+      "lostEyebrow": "Boom",
+      "youWon": "You won",
+      "youLost": "You lost",
+      "crewWon": "The crew won",
+      "crewLost": "The crew lost",
+      "wonReason": "Every module is defused. Nice work, crew.",
+      "strikesReason": "Three strikes. The bomb went off.",
+      "timeReason": "The timer ran out. The bomb went off.",
+      "strikesSummary": "Strikes: {{strikes}} of {{max}}"
+    }
+  },
+  "scene": {
+    "binderTitle": "FIELD MANUAL",
+    "analystsOnly": "Analysts only",
+    "strikes": "STRIKES",
+    "serial": "SERIAL",
+    "safe": "SAFE",
+    "boom": "BOOM"
+  },
+  "colors": {
+    "red": "Red",
+    "blue": "Blue",
+    "yellow": "Yellow",
+    "white": "White",
+    "black": "Black",
+    "green": "Green"
+  },
+  "manual": {
+    "wires": {
+      "title": "Hidden wires",
+      "intro": "Under its insulation, every wire carries a tag: one letter and one digit, such as K7. The Scanner can read the tags. The Operator sees the wire colors and the serial number on the case. Count wires from the top, starting at 1.",
+      "step1": "Step 1. Find the key color from the last digit of the serial number.",
+      "serialEndsIn": "Serial ends in",
+      "keyColor": "Key color",
+      "step2": "Step 2. If two or more wires are the key color, those wires are the candidates. Otherwise, every wire that is not the key color is a candidate.",
+      "step3": "Step 3. Look for candidates whose tag letter also appears in the serial number. If there are any, cut the one among them whose tag has the highest digit. If there are none, cut the candidate whose tag has the lowest digit.",
+      "unique": "No two tags on one bomb share a digit, so exactly one wire fits. Cutting any other wire is a strike."
+    }
+  },
+  "errors": {
+    "ROOM_NOT_FOUND": "Room not found",
+    "MATCH_ALREADY_STARTED": "The match has already started",
+    "NO_FREE_ROOM_CODE": "Could not find a free room code, try again",
+    "SEAT_TAKEN": "That seat is taken",
+    "SEAT_REQUIRED": "Claim a seat first",
+    "HOST_ONLY": "Only the host can start the match",
+    "PLAYERS_NOT_READY": "All 3 players must be seated, online and ready",
+    "MATCH_OVER": "The match is over",
+    "OPERATOR_ONLY": "Only the Operator can cut wires",
+    "TIME_UP": "Time is up",
+    "MODULE_NOT_FOUND": "That module doesn't exist",
+    "MODULE_ALREADY_SOLVED": "That module is already defused",
+    "WIRE_NOT_FOUND": "That wire doesn't exist",
+    "WIRE_ALREADY_CUT": "That wire is already cut",
+    "NICKNAME_LENGTH": "Pick a nickname of 1 to {{max}} characters"
+  }
+}

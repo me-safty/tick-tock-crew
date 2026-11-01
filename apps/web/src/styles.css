@@ -1,3 +1,26 @@
+/* Arabic glyphs only, so Latin text keeps the system fonts below. */
+@font-face {
+  font-family: "IBM Plex Sans Arabic";
+  font-weight: 400;
+  font-display: swap;
+  src: url("@fontsource/ibm-plex-sans-arabic/files/ibm-plex-sans-arabic-arabic-400-normal.woff2") format("woff2");
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-08FF, U+200C-200F, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: "IBM Plex Sans Arabic";
+  font-weight: 600;
+  font-display: swap;
+  src: url("@fontsource/ibm-plex-sans-arabic/files/ibm-plex-sans-arabic-arabic-600-normal.woff2") format("woff2");
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-08FF, U+200C-200F, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: "IBM Plex Sans Arabic";
+  font-weight: 700;
+  font-display: swap;
+  src: url("@fontsource/ibm-plex-sans-arabic/files/ibm-plex-sans-arabic-arabic-700-normal.woff2") format("woff2");
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-08FF, U+200C-200F, U+FB50-FDFF, U+FE70-FEFF;
+}
+
 :root {
   color-scheme: dark;
   --bg: #14161c;
@@ -11,8 +34,8 @@
   --operator: #f5a524;
   --analyst: #4cc3e6;
   --scanner: #8bd450;
-  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
-  font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Sans Arabic", ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  font-family: "IBM Plex Sans Arabic", "Avenir Next", "Segoe UI", system-ui, sans-serif;
   color: var(--text);
   background: var(--bg);
 }
@@ -49,6 +72,7 @@ p { margin: 0; }
 }
 
 .brand { display: grid; gap: 8px; }
+.brand-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .muted { color: var(--muted); font-size: 0.92rem; }
 .error { color: var(--red); font-size: 0.92rem; }
 
@@ -72,12 +96,14 @@ p { margin: 0; }
   border-radius: 6px;
   padding: 4px 10px;
   text-shadow: 0 0 10px rgb(255 77 79 / 0.7);
+  direction: ltr;
 }
 .led.big { display: inline-block; margin-top: 6px; font-size: 2.4rem; padding: 6px 14px; }
 
 .field { display: grid; gap: 6px; font-size: 0.85rem; color: var(--muted); }
 
 input {
+  min-width: 0;
   font: inherit;
   font-size: 1rem;
   color: var(--text);
@@ -102,6 +128,7 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
 .button:disabled { opacity: 0.45; cursor: not-allowed; }
 .button.primary { color: #1a1204; background: var(--amber); border-color: var(--amber); }
 .button.primary:hover:not(:disabled) { background: #ffb940; }
+.lang-switch { padding: 6px 12px; font-size: 0.85rem; }
 
 .divider {
   display: flex;
@@ -127,7 +154,7 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
   align-items: end;
   gap: 16px;
 }
-.lobby-header .share { margin-left: auto; }
+.lobby-header .share { margin-inline-start: auto; }
 .online-count { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); padding-bottom: 10px; }
 
 .nickname { width: min(960px, 100%); }
@@ -196,8 +223,7 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
 .hud {
   position: absolute;
   top: 20px;
-  left: 20px;
-  right: 20px;
+  inset-inline: 20px;
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -212,9 +238,12 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
   backdrop-filter: blur(6px);
   box-shadow: 0 12px 30px rgb(0 0 0 / 0.35);
 }
-.hud-role { display: grid; gap: 2px; padding: 12px 18px 12px 16px; border-left: 4px solid var(--accent); }
+.hud-role { display: grid; gap: 2px; padding-block: 12px; padding-inline: 16px 18px; border-inline-start: 4px solid var(--accent); }
 .hud-role h1 { font-size: 1.35rem; }
 .hud-role .muted { margin-top: 4px; }
+.hud-end { display: flex; align-items: flex-start; gap: 10px; }
+/* Stays above the end-of-match overlay, which comes later in the page. */
+.hud .lang-switch { position: relative; z-index: 1; pointer-events: auto; background: rgb(20 22 28 / 0.8); backdrop-filter: blur(6px); }
 .hud-clock { display: flex; align-items: center; gap: 16px; padding: 8px 14px; }
 .hud-clock .led.big { margin-top: 0; font-size: 1.9rem; padding: 4px 12px; }
 .led.urgent { border-color: var(--red); box-shadow: 0 0 14px rgb(255 77 79 / 0.55); }
@@ -226,7 +255,7 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
 }
 
 .strikes { display: inline-flex; align-items: center; gap: 6px; }
-.strikes .eyebrow { margin-right: 4px; }
+.strikes .eyebrow { margin-inline-end: 4px; }
 .strike { font-weight: 800; color: #3a3f4c; }
 .strike.on { color: var(--red); text-shadow: 0 0 8px rgb(255 77 79 / 0.7); }
 
@@ -262,7 +291,7 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
   --line: #ddd3c0;
   position: absolute;
   top: 120px;
-  right: 20px;
+  inset-inline-end: 20px;
   bottom: 20px;
   width: min(440px, calc(100% - 40px));
   box-sizing: border-box;
@@ -284,7 +313,7 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
 .manual-sheet .button:hover:not(:disabled) { background: #e2d6bd; }
 .manual p { line-height: 1.55; }
 .manual table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
-.manual th, .manual td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+.manual th, .manual td { text-align: start; padding: 6px 10px; border-bottom: 1px solid var(--line); }
 .manual th { color: #6b6f7a; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.1em; }
 
 .xray-lens {
@@ -297,9 +326,9 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
   box-shadow: inset 0 0 0 2px rgb(63 224 176 / 0.22);
 }
 .xray-lens::after {
-  content: "X-RAY";
+  content: attr(data-label);
   position: absolute;
-  right: 24px;
+  inset-inline-end: 24px;
   bottom: 22px;
   font: 700 0.75rem/1 var(--mono);
   letter-spacing: 0.3em;
@@ -335,10 +364,19 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
   .led.big { font-size: 1.8rem; }
   .seat { min-height: 0; }
   .lobby-footer { position: sticky; bottom: 0; padding: 12px 0; background: var(--bg); }
-  .hud { top: 12px; left: 12px; right: 12px; }
+  .hud { top: 12px; inset-inline: 12px; }
   .hud-role { padding: 8px 12px; }
   .hud-role h1 { font-size: 1.1rem; }
   .hud-clock .led.big { font-size: 1.4rem; }
   .hud-hint { bottom: 12px; }
-  .manual-sheet { top: auto; left: 12px; right: 12px; bottom: 12px; width: auto; max-height: 62%; }
+  .manual-sheet { top: auto; inset-inline: 12px; bottom: 12px; width: auto; max-height: 62%; }
 }
+
+/* Arabic letters join, so letter-spacing and caps styling would break words apart. */
+h1:lang(ar), .eyebrow:lang(ar), .divider:lang(ar), .tag:lang(ar), .manual th:lang(ar), .xray-lens:lang(ar)::after, .code-input:lang(ar)::placeholder {
+  letter-spacing: 0;
+  text-transform: none;
+}
+.eyebrow:lang(ar) { font-size: 0.85rem; }
+.tag:lang(ar) { font-size: 0.75rem; }
+.player.empty:lang(ar) { font-style: normal; }

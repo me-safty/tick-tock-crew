@@ -10,13 +10,16 @@
   },
   "dependencies": {
     "@convex-dev/presence": "0.4.0",
+    "@fontsource/ibm-plex-sans-arabic": "5.3.0",
     "@react-three/drei": "10.7.9",
     "@react-three/fiber": "9.8.2",
     "@tick-tock-crew/backend": "workspace:*",
     "@tick-tock-crew/rules": "workspace:*",
     "convex": "catalog:",
+    "i18next": "26.5.12",
     "react": "19.3.1",
     "react-dom": "19.3.1",
+    "react-i18next": "17.1.9",
     "three": "0.186.1"
   },
   "devDependencies": {

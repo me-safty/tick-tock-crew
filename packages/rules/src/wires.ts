@@ -74,29 +74,21 @@ export function generateWires(
   return { kind: "wires", wires: rng.shuffle(wires) }
 }
 
-const capitalize = (word: string) => word.charAt(0).toUpperCase() + word.slice(1)
-
 export const WIRES_MANUAL: ManualSection = {
-  title: "Hidden wires",
+  title: "wires.title",
   blocks: [
-    {
-      kind: "text",
-      text: "Under its insulation, every wire carries a tag: one letter and one digit, such as K7. The Scanner can read the tags. The Operator sees the wire colors and the serial number on the case. Count wires from the top, starting at 1.",
-    },
-    { kind: "text", text: "Step 1. Find the key color from the last digit of the serial number." },
+    { kind: "text", text: "wires.intro" },
+    { kind: "text", text: "wires.step1" },
     {
       kind: "table",
-      columns: ["Serial ends in", "Key color"],
-      rows: KEY_COLORS.map(({ digits, color }) => [digits.join(" or "), capitalize(color)]),
+      columns: ["wires.serialEndsIn", "wires.keyColor"],
+      rows: KEY_COLORS.map(({ digits, color }) => [
+        { kind: "digits", digits: [...digits] },
+        { kind: "color", color },
+      ]),
     },
-    {
-      kind: "text",
-      text: "Step 2. If two or more wires are the key color, those wires are the candidates. Otherwise, every wire that is not the key color is a candidate.",
-    },
-    {
-      kind: "text",
-      text: "Step 3. Look for candidates whose tag letter also appears in the serial number. If there are any, cut the one among them whose tag has the highest digit. If there are none, cut the candidate whose tag has the lowest digit.",
-    },
-    { kind: "text", text: "No two tags on one bomb share a digit, so exactly one wire fits. Cutting any other wire is a strike." },
+    { kind: "text", text: "wires.step2" },
+    { kind: "text", text: "wires.step3" },
+    { kind: "text", text: "wires.unique" },
   ],
 }

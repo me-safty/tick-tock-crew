@@ -4,7 +4,7 @@ import { MAX_STRIKES } from "@tick-tock-crew/rules"
 import { type ReactNode, useEffect, useMemo, useRef } from "react"
 import { formatClock, secondsLeft, URGENT_SECONDS } from "../clock"
 import type { Match, ViewOf } from "../roles"
-import { createCanvasTexture, MONO_FONT, SANS_FONT, useDrawnTexture } from "./labels"
+import { createCanvasTexture, MONO_FONT, SANS_FONT, useDrawnTexture, useLabelText } from "./labels"
 import { BOMB_POSITION, CASE, FACE, FACE_Z, FOOTER, HEADER, MODULE_SLOTS, type Rect } from "./layout"
 import { Ink, INK, Paint, useXray, XrayContext } from "./materials"
 import { usePrefersReducedMotion } from "./motion"
@@ -108,12 +108,14 @@ const TIMER_X = HEADER.x - HEADER.width / 2 + TIMER.width / 2 + 0.03
 
 type LedFace = { readonly text: string; readonly color: string }
 
-function timerFace({ status, seconds, blinkOff }: { status: Match["status"]; seconds: number; blinkOff: boolean }): LedFace {
+type TimerState = { status: Match["status"]; seconds: number; blinkOff: boolean; label: ReturnType<typeof useLabelText> }
+
+function timerFace({ status, seconds, blinkOff, label }: TimerState): LedFace {
   switch (status) {
     case "won":
-      return { text: "SAFE", color: LED_GREEN }
+      return { text: label.t("scene.safe"), color: LED_GREEN }
     case "lost":
-      return { text: "BOOM", color: LED_RED }
+      return { text: label.t("scene.boom"), color: LED_RED }
     case "playing":
       return { text: formatClock(seconds), color: seconds <= URGENT_SECONDS && blinkOff ? "#6b1a1c" : LED_RED }
     default: {
@@ -126,6 +128,7 @@ function timerFace({ status, seconds, blinkOff }: { status: Match["status"]; sec
 /** Counts down from `endsAt` on this device, redrawing only when the shown text changes. */
 function TimerDisplay({ status, endsAt }: Pick<MatchClock, "status" | "endsAt">) {
   const reducedMotion = usePrefersReducedMotion()
+  const label = useLabelText()
   const canvas = useMemo(() => createCanvasTexture({ width: 512, height: 136 }), [])
   useEffect(() => () => canvas.texture.dispose(), [canvas])
   const shown = useRef("")
@@ -135,14 +138,16 @@ function TimerDisplay({ status, endsAt }: Pick<MatchClock, "status" | "endsAt">)
       status,
       seconds: secondsLeft(endsAt, now),
       blinkOff: !reducedMotion && Math.floor(now / 500) % 2 === 1,
+      label,
     })
-    const key = `${face.text}|${face.color}`
+    const key = `${face.text}|${face.color}|${label.key}`
     if (key === shown.current) return
     shown.current = key
     canvas.draw((context, { width, height }) => {
       context.fillStyle = "#14080a"
       context.fillRect(0, 0, width, height)
       context.font = `700 104px ${MONO_FONT}`
+      context.direction = label.direction
       context.textAlign = "center"
       context.textBaseline = "middle"
       context.fillStyle = "#33100f"
@@ -170,16 +175,18 @@ const LAMP_SPACING = 0.1
 const LAMPS_RIGHT = HEADER.x + HEADER.width / 2 - 0.07
 
 function StrikeLamps({ strikes }: { readonly strikes: number }) {
+  const { t, direction, key } = useLabelText()
   const label = useDrawnTexture({
     width: 256,
     height: 48,
-    key: "strikes",
+    key,
     draw: (context, { width, height }) => {
-      context.font = `700 30px ${SANS_FONT}`
+      context.direction = direction
+      context.font = `700 ${direction === "rtl" ? 34 : 30}px ${SANS_FONT}`
       context.textAlign = "right"
       context.textBaseline = "middle"
       context.fillStyle = "#aab2c0"
-      context.fillText("STRIKES", width, height / 2)
+      context.fillText(t("scene.strikes"), width, height / 2)
     },
   })
   return (
@@ -225,20 +232,26 @@ function SerialPlate({ serial }: { readonly serial: string | null }) {
   )
 }
 
+/** The label leads in reading order: on the left in English, on the right in Arabic. The serial stays Latin. */
 function SerialText({ serial }: { readonly serial: string }) {
+  const { t, direction, key } = useLabelText()
+  const rtl = direction === "rtl"
   const texture = useDrawnTexture({
     width: 640,
     height: 84,
-    key: serial,
+    key: `${serial}|${key}`,
     draw: (context, { width, height }) => {
       context.textBaseline = "middle"
       context.fillStyle = "#4b5260"
-      context.font = `700 26px ${SANS_FONT}`
-      context.fillText("SERIAL", 34, height / 2 + 2)
+      context.font = `700 ${rtl ? 30 : 26}px ${SANS_FONT}`
+      context.direction = direction
+      context.textAlign = rtl ? "right" : "left"
+      context.fillText(t("scene.serial"), rtl ? width - 34 : 34, height / 2 + 2)
       context.fillStyle = INK
       context.font = `800 54px ${MONO_FONT}`
-      context.textAlign = "right"
-      context.fillText(serial.split("").join(" "), width - 34, height / 2 + 3)
+      context.direction = "ltr"
+      context.textAlign = rtl ? "left" : "right"
+      context.fillText(serial.split("").join(" "), rtl ? 34 : width - 34, height / 2 + 3)
     },
   })
   return (

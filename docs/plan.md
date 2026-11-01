@@ -29,7 +29,7 @@ Glyphs and rule tables are our own designs.
 ## Stack
 
 - **Bun** workspaces (no Turborepo). One pinned `effect` 4.x version shared by all packages.
-- **apps/web** — Vite + React SPA, React Three Fiber + drei, Convex React client, WebRTC voice. Assets: code-built primitives + Kenney CC0 models, stylized toon look.
+- **apps/web** — Vite + React SPA, React Three Fiber + drei, Convex React client, WebRTC voice, i18next (Arabic default, English toggle). Assets: code-built primitives + Kenney CC0 models, stylized toon look.
 - **packages/backend** — `convex/` (schema, functions); exports the generated `api`. Convex Cloud.
 - **packages/rules** — pure Effect 4.x game logic shared by client and server: seeded PRNG, `generateBomb(seed, difficulty)`, `viewFor(bomb, role)`, action validation, valve simulation.
 - **Tests** — Vitest everywhere, run via `bun run test` (convex-test needs Vite's `import.meta.glob`, so not `bun test`). `@effect/vitest` for rules, `convex-test` for key mutations (cut wire, strike, explode, win).
@@ -63,9 +63,12 @@ presence  @convex-dev/presence component
 2. **Lobby** — create/join by code, seat claim, ready, presence.
 3. **Rules core + wires** — PRNG, bomb gen, role views, strikes, timer, win/explode, with tests.
 4. **3D scene** — table + bomb from primitives and Kenney CC0 props, seat cameras, wire interaction, Analyst manual UI, Scanner X-ray.
-5. **Other modules** — keypad, dial, valve (clock offset).
-6. **Voice + pings** — WebRTC mesh, Cloudflare TURN, pings and emotes.
-7. **Polish** — pause/reconnect, difficulty presets, deploy.
+5. **Arabic localization** — Arabic default (RTL), English toggle, i18next, Western digits.
+6. **Other modules** — keypad, dial, valve (clock offset).
+7. **Voice + pings** — WebRTC mesh, Cloudflare TURN, pings and emotes.
+8. **Polish + deploy** — pause/reconnect, difficulty presets, deploy.
+
+From M6 on, every new user-facing string ships in both `ar` and `en` (`apps/web/src/i18n/locales`), and new backend errors are codes in `packages/backend/convex/errors.ts` with a translation in both.
 
 ## Risks
 

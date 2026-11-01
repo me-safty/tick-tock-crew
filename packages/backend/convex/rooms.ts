@@ -1,8 +1,9 @@
 import { Presence } from "@convex-dev/presence"
 import { type Difficulty, generateBomb, initialState } from "@tick-tock-crew/rules"
-import { ConvexError, v } from "convex/values"
+import { v } from "convex/values"
 import { components, internal } from "./_generated/api"
 import type { Doc, Id } from "./_generated/dataModel"
+import { appError } from "./errors"
 import { mutation, query, type QueryCtx } from "./_generated/server"
 import { role } from "./schema"
 
@@ -33,13 +34,13 @@ export function findRoom(ctx: QueryCtx, code: string) {
 
 export async function getRoom(ctx: QueryCtx, code: string) {
   const room = await findRoom(ctx, code)
-  if (!room) throw new ConvexError("Room not found")
+  if (!room) throw appError({ code: "ROOM_NOT_FOUND" })
   return room
 }
 
 async function getLobbyRoom(ctx: QueryCtx, code: string) {
   const room = await getRoom(ctx, code)
-  if (room.status !== "lobby") throw new ConvexError("The match has already started")
+  if (room.status !== "lobby") throw appError({ code: "MATCH_ALREADY_STARTED" })
   return room
 }
 
@@ -64,7 +65,7 @@ async function onlineSessions(ctx: QueryCtx, code: string) {
 function parseName(name: string) {
   const trimmed = name.trim()
   if (trimmed.length === 0 || trimmed.length > MAX_NAME_LENGTH) {
-    throw new ConvexError(`Pick a nickname of 1 to ${MAX_NAME_LENGTH} characters`)
+    throw appError({ code: "NICKNAME_LENGTH", max: MAX_NAME_LENGTH })
   }
   return trimmed
 }
@@ -79,7 +80,7 @@ export const createRoom = mutation({
       await ctx.db.insert("rooms", { code, hostSessionId: sessionId, status: "lobby" })
       return code
     }
-    throw new ConvexError("Could not find a free room code, try again")
+    throw appError({ code: "NO_FREE_ROOM_CODE" })
   },
 })
 
@@ -101,7 +102,7 @@ export const claimSeat = mutation({
       .unique()
     if (taken?.sessionId === args.sessionId) return null
     if (taken) {
-      if ((await onlineSessions(ctx, room.code)).has(taken.sessionId)) throw new ConvexError("That seat is taken")
+      if ((await onlineSessions(ctx, room.code)).has(taken.sessionId)) throw appError({ code: "SEAT_TAKEN" })
       await ctx.db.delete("seats", taken._id)
     }
     const current = await findSeat(ctx, { roomId: room._id, sessionId: args.sessionId })
@@ -134,7 +135,7 @@ export const setReady = mutation({
   handler: async (ctx, { code, sessionId, ready }) => {
     const room = await getLobbyRoom(ctx, code)
     const seat = await findSeat(ctx, { roomId: room._id, sessionId })
-    if (!seat) throw new ConvexError("Claim a seat first")
+    if (!seat) throw appError({ code: "SEAT_REQUIRED" })
     await ctx.db.patch("seats", seat._id, { ready })
     return null
   },
@@ -145,11 +146,11 @@ export const startMatch = mutation({
   returns: v.null(),
   handler: async (ctx, { code, sessionId }) => {
     const room = await getLobbyRoom(ctx, code)
-    if (room.hostSessionId !== sessionId) throw new ConvexError("Only the host can start the match")
+    if (room.hostSessionId !== sessionId) throw appError({ code: "HOST_ONLY" })
     const seats = await roomSeats(ctx, room._id)
     const online = await onlineSessions(ctx, room.code)
     if (seats.length < ROLES.length || seats.some((seat) => !seat.ready || !online.has(seat.sessionId))) {
-      throw new ConvexError("All 3 players must be seated, online and ready")
+      throw appError({ code: "PLAYERS_NOT_READY" })
     }
     const seed = Math.floor(Math.random() * 2 ** 32)
     const endsAt = Date.now() + MATCH_DURATION_MS

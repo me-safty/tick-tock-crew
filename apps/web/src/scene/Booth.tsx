@@ -1,6 +1,6 @@
 import { RoundedBox, useCursor } from "@react-three/drei"
 import { Suspense, useState } from "react"
-import { SANS_FONT, useDrawnTexture } from "./labels"
+import { SANS_FONT, useDrawnTexture, useLabelText, wrapText } from "./labels"
 import { CLICK_SLOP_PX } from "./look"
 import { Ink, Toon } from "./materials"
 import { Prop } from "./Props"
@@ -65,25 +65,29 @@ const BINDER = { width: 0.44, depth: 0.58, thickness: 0.06 }
 function ManualBinder({ onOpen }: { readonly onOpen: () => void }) {
   const [hovered, setHovered] = useState(false)
   useCursor(hovered)
+  const { t, direction, key } = useLabelText()
   const cover = useDrawnTexture({
     width: 440,
     height: 580,
-    key: "cover",
+    key,
     draw: (context, { width, height }) => {
+      context.direction = direction
       context.fillStyle = "#f26b3a"
       context.fillRect(0, 0, width, height)
       context.fillStyle = "#1d2029"
       context.fillRect(0, 70, width, 150)
       context.fillStyle = "#f5e9d4"
       context.textAlign = "center"
-      context.font = `800 58px ${SANS_FONT}`
-      context.fillText("FIELD", width / 2, 140)
-      context.fillText("MANUAL", width / 2, 200)
+      context.textBaseline = "middle"
+      context.font = `800 54px ${SANS_FONT}`
+      const lines = wrapText({ context, text: t("scene.binderTitle"), maxWidth: width - 60 })
+      lines.forEach((line, i) => context.fillText(line, width / 2, 145 + (i - (lines.length - 1) / 2) * 60))
+      context.textBaseline = "alphabetic"
       context.fillStyle = "#1d2029"
       context.font = `700 30px ${SANS_FONT}`
       context.fillText("TICK TOCK CREW", width / 2, 300)
       context.font = `600 26px ${SANS_FONT}`
-      context.fillText("Analysts only", width / 2, height - 60)
+      context.fillText(t("scene.analystsOnly"), width / 2, height - 60)
     },
   })
   return (
