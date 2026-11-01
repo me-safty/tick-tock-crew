@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react"
 import { CanvasTexture, SRGBColorSpace } from "three"
 
-export type Draw = (context: CanvasRenderingContext2D, size: { width: number; height: number }) => void
+type Draw = (context: CanvasRenderingContext2D, size: { width: number; height: number }) => void
 
 /** A texture you can redraw, for text that should stay crisp without loading a font file. */
 export function createCanvasTexture({ width, height }: { width: number; height: number }) {

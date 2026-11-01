@@ -60,7 +60,7 @@ export const XRAY = {
   core: xrayMaterial({ color: "#c8fff0", base: 0.9, rim: 0.4 }),
 } as const
 
-export type XrayPart = keyof typeof XRAY
+type XrayPart = keyof typeof XRAY
 
 /** Toon paint in the normal look, an X-ray shell under the Scanner's lens. */
 export function Paint({ xray = "part", ...props }: ThreeElements["meshToonMaterial"] & { readonly xray?: XrayPart }) {

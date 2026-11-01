@@ -4,7 +4,7 @@ import { SANS_FONT, useDrawnTexture } from "./labels"
 import { Ink, Toon } from "./materials"
 import { Prop } from "./Props"
 
-export const DESK_TOP_Y = 0.768
+const DESK_TOP_Y = 0.768
 const BOOTH = { width: 3.4, depth: 3.2, height: 2.8, backZ: -0.95 }
 
 /** The Analyst's booth, away from the bomb: a desk, the manual, and a radio to the crew. */

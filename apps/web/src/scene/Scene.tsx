@@ -17,7 +17,7 @@ const SEATS = {
   spectator: { position: [2.6, 2.3, 3.4], target: [0, 1, 0], fov: 45, limits: { yaw: 0.6, pitch: 0.35 } },
 } as const satisfies Record<string, Seat>
 
-export type SceneProps = {
+type SceneProps = {
   readonly match: Match
   /** Play the win or loss sequence; false when the match was already over on arrival. */
   readonly finale: boolean

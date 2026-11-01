@@ -9,7 +9,7 @@ import { BOMB_POSITION, CASE, FACE, FACE_Z, FOOTER, HEADER, MODULE_SLOTS, type R
 import { Ink, INK, Paint, useXray, XrayContext } from "./materials"
 import { usePrefersReducedMotion } from "./motion"
 
-export type BombView = ViewOf<"operator"> | ViewOf<"scanner">
+type BombView = ViewOf<"operator"> | ViewOf<"scanner">
 type MatchClock = Pick<Match, "status" | "endsAt" | "strikes">
 
 const PAINT = {
