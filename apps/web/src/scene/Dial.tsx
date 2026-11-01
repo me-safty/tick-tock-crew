@@ -273,17 +273,17 @@ function drawScreen(
   context.stroke()
 
   const line = (level: number, dashed: boolean) => {
-    context.setLineDash(dashed ? [14, 12] : [])
+    context.setLineDash(dashed ? [18, 12] : [])
     context.beginPath()
     context.moveTo(MARGIN, y(level))
     context.lineTo(width - MARGIN, y(level))
     context.stroke()
   }
-  context.strokeStyle = "rgba(127, 184, 166, 0.75)"
-  context.lineWidth = 3
+  context.strokeStyle = "rgba(127, 184, 166, 0.9)"
+  context.lineWidth = 4
   line(FULL_HEIGHT, false)
   line(FULL_HEIGHT / 2, true)
-  context.strokeStyle = "rgba(127, 184, 166, 0.35)"
+  context.strokeStyle = "rgba(127, 184, 166, 0.5)"
   line(0, false)
   context.setLineDash([])
 
