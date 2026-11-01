@@ -182,7 +182,7 @@ function StrikeLamps({ strikes }: { readonly strikes: number }) {
     key,
     draw: (context, { width, height }) => {
       context.direction = direction
-      context.font = `700 30px ${SANS_FONT}`
+      context.font = `700 ${direction === "rtl" ? 34 : 30}px ${SANS_FONT}`
       context.textAlign = "right"
       context.textBaseline = "middle"
       context.fillStyle = "#aab2c0"
@@ -243,7 +243,7 @@ function SerialText({ serial }: { readonly serial: string }) {
     draw: (context, { width, height }) => {
       context.textBaseline = "middle"
       context.fillStyle = "#4b5260"
-      context.font = `700 26px ${SANS_FONT}`
+      context.font = `700 ${rtl ? 32 : 26}px ${SANS_FONT}`
       context.direction = direction
       context.textAlign = rtl ? "right" : "left"
       context.fillText(t("scene.serial"), rtl ? width - 34 : 34, height / 2 + 2)

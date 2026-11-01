@@ -1,6 +1,6 @@
 import { RoundedBox, useCursor } from "@react-three/drei"
 import { Suspense, useState } from "react"
-import { SANS_FONT, useDrawnTexture, useLabelText } from "./labels"
+import { SANS_FONT, useDrawnTexture, useLabelText, wrapText } from "./labels"
 import { CLICK_SLOP_PX } from "./look"
 import { Ink, Toon } from "./materials"
 import { Prop } from "./Props"
@@ -78,11 +78,11 @@ function ManualBinder({ onOpen }: { readonly onOpen: () => void }) {
       context.fillRect(0, 70, width, 150)
       context.fillStyle = "#f5e9d4"
       context.textAlign = "center"
-      // Arabic letters reach higher and lower, so its two title lines need a smaller size to stay apart.
-      const [size, firstLine, secondLine] = direction === "rtl" ? [50, 132, 198] : [58, 140, 200]
-      context.font = `800 ${size}px ${SANS_FONT}`
-      context.fillText(t("scene.binderLine1"), width / 2, firstLine)
-      context.fillText(t("scene.binderLine2"), width / 2, secondLine)
+      context.textBaseline = "middle"
+      context.font = `800 54px ${SANS_FONT}`
+      const lines = wrapText({ context, text: t("scene.binderTitle"), maxWidth: width - 60 })
+      lines.forEach((line, i) => context.fillText(line, width / 2, 145 + (i - (lines.length - 1) / 2) * 60))
+      context.textBaseline = "alphabetic"
       context.fillStyle = "#1d2029"
       context.font = `700 30px ${SANS_FONT}`
       context.fillText("TICK TOCK CREW", width / 2, 300)

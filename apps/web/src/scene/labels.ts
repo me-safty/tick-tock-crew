@@ -39,6 +39,17 @@ const ARABIC_FONT = '"IBM Plex Sans Arabic"'
 export const MONO_FONT = `${ARABIC_FONT}, "SF Mono", ui-monospace, Menlo, Consolas, monospace`
 export const SANS_FONT = `${ARABIC_FONT}, "Avenir Next", "Segoe UI", system-ui, sans-serif`
 
+/** Breaks `text` at spaces into lines no wider than `maxWidth` in the context's current font. */
+export function wrapText({ context, text, maxWidth }: { context: CanvasRenderingContext2D; text: string; maxWidth: number }) {
+  const lines: Array<string> = []
+  for (const word of text.split(" ")) {
+    const last = lines.at(-1)
+    if (last !== undefined && context.measureText(`${last} ${word}`).width <= maxWidth) lines[lines.length - 1] = `${last} ${word}`
+    else lines.push(word)
+  }
+  return lines
+}
+
 const ARABIC_FACES = [600, 700].map((weight) => `${weight} 16px ${ARABIC_FONT}`)
 const ARABIC_SAMPLE = "ع"
 

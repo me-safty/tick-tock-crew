@@ -112,8 +112,7 @@
     }
   },
   "scene": {
-    "binderLine1": "الدليل",
-    "binderLine2": "الميداني",
+    "binderTitle": "الدليل الميداني",
     "analystsOnly": "للمحلّلين فقط",
     "strikes": "الأخطاء",
     "serial": "الرقم التسلسلي",

@@ -108,8 +108,7 @@
     }
   },
   "scene": {
-    "binderLine1": "FIELD",
-    "binderLine2": "MANUAL",
+    "binderTitle": "FIELD MANUAL",
     "analystsOnly": "Analysts only",
     "strikes": "STRIKES",
     "serial": "SERIAL",
