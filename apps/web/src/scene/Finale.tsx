@@ -14,18 +14,16 @@ type Outcome = "won" | "lost"
  * `origin` is the bomb's position, or null for a seat with no bomb in view.
  */
 export function Finale({ outcome, origin }: { readonly outcome: Outcome; readonly origin: Vec3 | null }) {
-  const flash = !usePrefersReducedMotion()
+  const flash = usePrefersReducedMotion() ? 0 : 1
   switch (outcome) {
     case "lost":
-      if (origin) return <Explosion origin={origin} flash={flash} />
-      return flash && <FlashLight position={[0, 1.6, 0.4]} color="#ff5a3c" peak={12} />
+      if (origin) return <Explosion origin={origin} flashPeak={40 * flash} />
+      return <FlashLight position={BOOTH_LIGHT} color="#ff5a3c" peak={12 * flash} />
     case "won":
       return (
         <>
-          <Confetti center={origin ?? [0, 0.8, -0.8]} />
-          {flash && (
-            <FlashLight position={origin ? [origin[0], origin[1] + 0.6, origin[2] + 0.8] : [0, 1.6, 0.4]} color="#5cf0a0" peak={6} />
-          )}
+          <Confetti center={origin ?? BOOTH_CONFETTI} />
+          <FlashLight position={origin ? [origin[0], origin[1] + 0.6, origin[2] + 0.8] : BOOTH_LIGHT} color="#5cf0a0" peak={6 * flash} />
         </>
       )
     default: {
@@ -34,6 +32,9 @@ export function Finale({ outcome, origin }: { readonly outcome: Outcome; readonl
     }
   }
 }
+
+const BOOTH_LIGHT: Vec3 = [0, 1.6, 0.4]
+const BOOTH_CONFETTI: Vec3 = [0, 0.8, -0.8]
 
 const FIRE = ["#fff1a8", "#ffd34d", "#ff9a1f", "#ff5a3c"] as const
 const SMOKE = ["#3a3f4c", "#4b5160", "#2b2f3a"] as const
@@ -53,7 +54,7 @@ type Particle = {
 
 const pick = <T,>(items: readonly [T, ...T[]]) => items[Math.floor(Math.random() * items.length)] ?? items[0]
 
-function Explosion({ origin, flash }: { readonly origin: Vec3; readonly flash: boolean }) {
+function Explosion({ origin, flashPeak }: { readonly origin: Vec3; readonly flashPeak: number }) {
   const particles = useMemo(
     () =>
       Array.from({ length: 90 }, (_, i): Particle => {
@@ -77,7 +78,7 @@ function Explosion({ origin, flash }: { readonly origin: Vec3; readonly flash: b
       <Particles particles={particles}>
         <icosahedronGeometry args={[1, 0]} />
       </Particles>
-      {flash && <FlashLight position={[origin[0], origin[1] + 0.3, origin[2] + 0.6]} color="#ff9a3c" peak={40} />}
+      <FlashLight position={[origin[0], origin[1] + 0.3, origin[2] + 0.6]} color="#ff9a3c" peak={flashPeak} />
       <Scorch origin={origin} />
     </>
   )

@@ -40,7 +40,8 @@ export function Scene({ match, finale, pendingCut, onCut, onOpenManual }: SceneP
       <directionalLight position={[3, 5, 4]} intensity={1.5} color="#fff1dc" />
       <SeatCamera seat={seat} shaking={ending === "lost" && !reducedMotion} />
       <RoleSet match={match} pendingCut={pendingCut} onCut={onCut} onOpenManual={onOpenManual} />
-      {ending && <Finale outcome={ending} origin={view && view.role !== "analyst" ? BOMB_POSITION : null} />}
+      {/* three.js recompiles every lit material when the point-light count changes, so the finale's flash replaces an idle light. */}
+      {ending ? <Finale outcome={ending} origin={view && view.role !== "analyst" ? BOMB_POSITION : null} /> : <pointLight intensity={0} />}
     </Canvas>
   )
 }
