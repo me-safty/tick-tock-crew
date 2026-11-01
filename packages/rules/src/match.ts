@@ -165,13 +165,22 @@ const targetValve = (bomb: Bomb, state: MatchState, { module, at }: ValveAction)
     return { valve: bombModule, moduleState, stamp, record }
   })
 
-/** Starts venting. Holding a valve that is already held changes nothing. */
-export const holdValve = (bomb: Bomb, state: MatchState, action: ValveAction): Effect.Effect<Outcome<"held">, TargetError> =>
+/**
+ * Starts venting. Holding a valve that is already held changes nothing. A valve that topped out before the hold
+ * arrived bursts first, even if its scheduled burst hasn't run yet.
+ */
+export const holdValve = (
+  bomb: Bomb,
+  state: MatchState,
+  action: ValveAction,
+): Effect.Effect<Outcome<"held" | "burst">, TargetError> =>
   Effect.gen(function* () {
-    const { valve, moduleState, record } = yield* targetValve(bomb, state, action)
+    const { valve, moduleState, stamp, record } = yield* targetValve(bomb, state, action)
     if (isHeld(valve.gauge, moduleState.progress)) return { kind: "held", state }
-    const next = { ...moduleState, progress: record("hold") }
-    return { kind: "held", state: settle(state, { module: action.module, next, right: true }) }
+    const due = burstAt(valve.gauge, moduleState.progress)
+    const burst = due !== null && due <= stamp
+    const next = { ...moduleState, progress: burst ? record("reset", "hold") : record("hold") }
+    return { kind: burst ? "burst" : "held", state: settle(state, { module: action.module, next, right: !burst }) }
   })
 
 /** Seals the valve and judges the pressure at that moment. A strike puts the needle back at its start. */

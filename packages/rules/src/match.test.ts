@@ -230,6 +230,20 @@ describe("pressure valve", () => {
       expect((yield* burstValve(bomb, held, { module: VALVE, at: due * 2 })).kind).toBe("steady")
     }),
   )
+
+  it.effect("bursts a valve held only after it topped out, before the scheduled burst runs", () =>
+    Effect.gen(function* () {
+      const due = burstAt(valveModule.gauge, { since: STARTED, events: [] }) ?? 0
+      const late = yield* hold(fresh(), due - STARTED + 500)
+      expect(late.kind).toBe("burst")
+      expect(late.state.strikes).toBe(1)
+      expect(late.state.modules[VALVE]).toMatchObject({
+        progress: { events: [{ kind: "reset", at: due + 500 }, { kind: "hold", at: due + 500 }] },
+      })
+      expect((yield* burstValve(bomb, late.state, { module: VALVE, at: due + 600 })).kind).toBe("steady")
+      expect((yield* hold(fresh(), due - STARTED - 1)).kind).toBe("held")
+    }),
+  )
 })
 
 describe("matchStatus", () => {
