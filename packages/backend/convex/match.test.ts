@@ -31,6 +31,16 @@ async function bombOf(t: T) {
   return { room, bomb, answer, wrong, presses, frequency: solveDial(serial, waveform), since, band, ventedTo, firstBurst }
 }
 
+/** A match whose valve tops out before time runs out: a low start on a slow valve outlasts the timer. */
+async function burstingMatch() {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const match = await startedMatch()
+    const { room, firstBurst } = await bombOf(match.t)
+    if (firstBurst < room.endsAt) return match
+  }
+  throw new Error("no seed burst before time ran out")
+}
+
 const WIRES = 0
 const KEYPAD = 1
 const DIAL = 2
@@ -197,7 +207,7 @@ describe("pressure valve", () => {
 
   test("bursts with a strike when the needle tops out untended, and not while held", async () => {
     vi.useFakeTimers()
-    const { t, code } = await startedMatch()
+    const { t, code } = await burstingMatch()
     const { firstBurst } = await bombOf(t)
 
     // The server's clock can run a millisecond ahead of the fake one, so advance to the job's own time.
@@ -219,7 +229,7 @@ describe("pressure valve", () => {
 
   test("loses the match when a burst is the third strike", async () => {
     vi.useFakeTimers()
-    const { t, code } = await startedMatch()
+    const { t, code } = await burstingMatch()
     const { room, wrong, firstBurst } = await bombOf(t)
 
     for (const wire of wrong.slice(0, 2)) await cut(t, code, wire)
