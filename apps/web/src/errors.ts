@@ -1,20 +1,25 @@
+import { isAppError } from "@tick-tock-crew/backend/errors"
 import { ConvexError } from "convex/values"
+import type { TFunction } from "i18next"
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 
-function errorMessage(error: unknown) {
-  return error instanceof ConvexError && typeof error.data === "string"
-    ? error.data
-    : "Something went wrong. Try again."
+function errorMessage(t: TFunction, error: unknown) {
+  return error instanceof ConvexError && isAppError(error.data)
+    ? t(`errors.${error.data.code}`, error.data)
+    : t("common.genericError")
 }
 
+/** Keeps the failure itself, so its message follows a language switch. */
 export function useMutationError() {
-  const [error, setError] = useState<string | null>(null)
+  const { t } = useTranslation()
+  const [failure, setFailure] = useState<{ readonly cause: unknown } | null>(null)
   const run = <T,>(mutation: Promise<T>) => {
-    setError(null)
+    setFailure(null)
     return mutation.catch((cause: unknown) => {
-      setError(errorMessage(cause))
+      setFailure({ cause })
       return null
     })
   }
-  return { error, run }
+  return { error: failure && errorMessage(t, failure.cause), run }
 }
