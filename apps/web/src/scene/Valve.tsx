@@ -310,12 +310,12 @@ export function ScannerValve({
   )
 }
 
-const GAUGE = { x: 0.155, y: 0.037, radius: 0.106 }
+const GAUGE = { x: 0.12, y: 0.035, radius: 0.1 }
 const GAUGE_PX = 512
 const SWEEP_DEGREES = 270
 const DANGER_FROM = 90
-const READOUT = { x: 0.12, y: -0.108, width: 0.11, height: 0.042 }
-const LAMP = { x: 0.225, y: -0.108 }
+const READOUT = { x: 0.12, y: -0.105, width: 0.15, height: 0.056 }
+const LAMP = { x: -0.005, y: -0.105 }
 
 /** Where the needle points for `pressure`, in radians from +x: 0 at lower left, MAX_PRESSURE at lower right. */
 const needleAngle = (pressure: number) => MathUtils.degToRad(225 - (pressure / MAX_PRESSURE) * SWEEP_DEGREES)
@@ -441,9 +441,9 @@ function VentLamp({ venting }: { readonly venting: boolean }) {
   })
   return (
     <group position={[LAMP.x, LAMP.y, 0]}>
-      <mesh position={[0, 0.012, 0]} renderOrder={2}>
-        <circleGeometry args={[0.012, 20]} />
-        <meshBasicMaterial color={venting ? "#ffb347" : "#3a2a12"} depthTest={false} toneMapped={false} />
+      <mesh position={[0, 0.016, 0]} renderOrder={2}>
+        <circleGeometry args={[0.018, 24]} />
+        <meshBasicMaterial color={venting ? "#ffb347" : "#5a4420"} depthTest={false} toneMapped={false} />
       </mesh>
       <mesh position={[0, -0.017, 0]} renderOrder={2}>
         <planeGeometry args={[0.08, 0.028]} />
