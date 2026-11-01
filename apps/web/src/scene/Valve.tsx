@@ -352,11 +352,11 @@ function drawGaugeFace(context: CanvasRenderingContext2D, { width }: { width: nu
     context.stroke()
   }
   context.fillStyle = "#d9fff2"
-  context.font = `700 44px ${MONO_FONT}`
+  context.font = `700 64px ${MONO_FONT}`
   context.direction = "ltr"
   context.textAlign = "center"
   context.textBaseline = "middle"
-  for (let pressure = 0; pressure <= MAX_PRESSURE; pressure += 20) context.fillText(String(pressure), ...at(pressure, radius - 108))
+  for (const pressure of [0, MAX_PRESSURE / 2, MAX_PRESSURE]) context.fillText(String(pressure), ...at(pressure, radius - 112))
 }
 
 function PressureGauge({ module, clockOffset }: { readonly module: ScannerModule; readonly clockOffset: RefObject<number> }) {
