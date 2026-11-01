@@ -12,7 +12,8 @@ import { HOVER, Ink, Paint, Toon, XRAY } from "./materials"
 type OperatorModule = Extract<ViewOf<"operator">["modules"][number], { kind: "wires" }>
 type ScannerModule = Extract<ViewOf<"scanner">["modules"][number], { kind: "wires" }>
 
-const WIRE_COLORS = {
+/** How each named color is painted, on wires and valve handles alike. */
+export const COLOR_HEX = {
   red: "#e5484d",
   blue: "#3e7bfa",
   yellow: "#f5d90a",
@@ -70,7 +71,7 @@ export function OperatorWires({
           <group key={i}>
             <SlotNumber number={i + 1} x={-rect.width / 2 + 0.035} y={y} />
             <Strand y={y} span={span} sag={sagOf(i)} cut={cut} highlighted={highlighted} solid>
-              <Toon color={WIRE_COLORS[wire.color]} emissive={highlighted ? HOVER : "#000000"} emissiveIntensity={0.35} />
+              <Toon color={COLOR_HEX[wire.color]} emissive={highlighted ? HOVER : "#000000"} emissiveIntensity={0.35} />
             </Strand>
             {!cut && (
               <mesh
