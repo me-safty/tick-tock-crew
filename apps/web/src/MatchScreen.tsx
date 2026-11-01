@@ -163,8 +163,10 @@ function useOperator(code: string) {
     // The valve answers in real time, so working it never locks the rest of the bomb.
     const locks = action.kind !== "hold" && action.kind !== "release"
     if (locks) setPending(action)
-    setFeedback(null)
-    setFeedback(await run(send(action)))
+    // A hold right after a release must leave that release's result on screen.
+    if (action.kind !== "hold") setFeedback(null)
+    const result = await run(send(action))
+    if (result) setFeedback(result)
     if (locks) setPending(null)
   }
   return { pending, feedback, error, act }
