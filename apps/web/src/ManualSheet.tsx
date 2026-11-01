@@ -87,6 +87,8 @@ function Cell({ cell }: { readonly cell: ManualCell }) {
           ))}
         </ol>
       )
+    case "band":
+      return <bdi dir="ltr">{`${cell.low}–${cell.high}`}</bdi>
     case "wave":
       return (
         <span className="wave-cell">
