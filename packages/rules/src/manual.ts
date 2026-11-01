@@ -17,11 +17,10 @@ export const MANUAL_TEXT = [
 ] as const
 const ManualText = Schema.Literals(MANUAL_TEXT)
 
-export const ManualCell = Schema.Union([
+const ManualCell = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("digits"), digits: MutableArray(Schema.Int) }),
   Schema.Struct({ kind: Schema.Literal("color"), color: Color }),
 ])
-export type ManualCell = typeof ManualCell.Type
 
 export const ManualBlock = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("text"), text: ManualText }),
