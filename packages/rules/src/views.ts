@@ -4,6 +4,7 @@ import { DIAL_MANUAL, Waveform } from "./dial"
 import { Glyph, KEYPAD_MANUAL } from "./keypad"
 import { ManualSection, MutableArray } from "./manual"
 import type { MatchState, ModuleState } from "./match"
+import { Coils, Gauge, Handle, isHeld, VALVE_MANUAL, ValveProgress } from "./valve"
 import { Color, Tag, WIRES_MANUAL } from "./wires"
 
 export const Role = Schema.Literals(["operator", "analyst", "scanner"])
@@ -17,6 +18,7 @@ const OperatorModule = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("wires"), solved, wires: MutableArray(Schema.Struct({ color: Color, cut })) }),
   Schema.Struct({ kind: Schema.Literal("keypad"), solved, keys: MutableArray(Schema.Struct({ glyph: Glyph, pressed })) }),
   Schema.Struct({ kind: Schema.Literal("dial"), solved }),
+  Schema.Struct({ kind: Schema.Literal("valve"), solved, handle: Handle, held: Schema.Boolean }),
 ])
 type OperatorModule = typeof OperatorModule.Type
 
@@ -35,6 +37,7 @@ const ScannerModule = Schema.Union([
     keys: MutableArray(Schema.Struct({ live: Schema.Boolean, pressed })),
   }),
   Schema.Struct({ kind: Schema.Literal("dial"), solved, waveform: Waveform }),
+  Schema.Struct({ kind: Schema.Literal("valve"), solved, coils: Coils, gauge: Gauge, ...ValveProgress.fields }),
 ])
 type ScannerModule = typeof ScannerModule.Type
 
@@ -43,7 +46,7 @@ export type ScannerView = typeof ScannerView.Type
 
 export const AnalystView = Schema.Struct({
   role: Schema.Literal("analyst"),
-  modules: MutableArray(Schema.Struct({ kind: Schema.Literals(["wires", "keypad", "dial"]), solved })),
+  modules: MutableArray(Schema.Struct({ kind: Schema.Literals(["wires", "keypad", "dial", "valve"]), solved })),
   manual: MutableArray(ManualSection),
 })
 export type AnalystView = typeof AnalystView.Type
@@ -51,10 +54,18 @@ export type AnalystView = typeof AnalystView.Type
 export const RoleView = Schema.Union([OperatorView, ScannerView, AnalystView])
 export type RoleView = typeof RoleView.Type
 
-const MANUAL: Record<ModuleKind, ManualSection> = { wires: WIRES_MANUAL, keypad: KEYPAD_MANUAL, dial: DIAL_MANUAL }
+const MANUAL: Record<ModuleKind, ManualSection> = {
+  wires: WIRES_MANUAL,
+  keypad: KEYPAD_MANUAL,
+  dial: DIAL_MANUAL,
+  valve: VALVE_MANUAL,
+}
 
 const cutWires = (state: ModuleState | undefined) => (state?.kind === "wires" ? state.progress.cut : [])
 const pressedKeys = (state: ModuleState | undefined) => (state?.kind === "keypad" ? state.progress.pressed : [])
+// Rooms started before the valve existed have no valve state; their gauge reads as untouched since time zero.
+const valveProgress = (state: ModuleState | undefined): ValveProgress =>
+  state?.kind === "valve" ? state.progress : { since: 0, events: [] }
 
 function operatorModule(module: BombModule, state: ModuleState | undefined): OperatorModule {
   const solved = state?.solved ?? false
@@ -69,6 +80,8 @@ function operatorModule(module: BombModule, state: ModuleState | undefined): Ope
     }
     case "dial":
       return { kind: module.kind, solved }
+    case "valve":
+      return { kind: module.kind, solved, handle: module.handle, held: isHeld(module.gauge, valveProgress(state)) }
     default: {
       const _exhaustive: never = module
       return _exhaustive
@@ -89,6 +102,10 @@ function scannerModule(module: BombModule, state: ModuleState | undefined): Scan
     }
     case "dial":
       return { kind: module.kind, solved, waveform: module.waveform }
+    case "valve": {
+      const { since, events } = valveProgress(state)
+      return { kind: module.kind, solved, coils: module.coils, gauge: module.gauge, since, events }
+    }
     default: {
       const _exhaustive: never = module
       return _exhaustive
