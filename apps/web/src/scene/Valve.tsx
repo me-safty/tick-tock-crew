@@ -407,11 +407,11 @@ function PressureGauge({ module, clockOffset }: { readonly module: ScannerModule
       <group ref={needle} position={[GAUGE.x, GAUGE.y, 0]} rotation={[0, 0, needleAngle(gauge.start) - Math.PI / 2]}>
         <mesh position={[0, GAUGE.radius * 0.36, 0]} renderOrder={3}>
           <planeGeometry args={[0.014, GAUGE.radius * 0.84]} />
-          <meshBasicMaterial color="#ffd166" depthTest={false} toneMapped={false} />
+          <meshBasicMaterial color="#ffd166" transparent depthTest={false} toneMapped={false} />
         </mesh>
         <mesh renderOrder={3}>
           <circleGeometry args={[0.012, 20]} />
-          <meshBasicMaterial color="#d9fff2" depthTest={false} toneMapped={false} />
+          <meshBasicMaterial color="#d9fff2" transparent depthTest={false} toneMapped={false} />
         </mesh>
       </group>
       <mesh position={[READOUT.x, READOUT.y, 0]} renderOrder={2}>
