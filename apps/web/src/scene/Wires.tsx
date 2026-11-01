@@ -71,7 +71,9 @@ export function OperatorWires({
         const highlighted = hovered === i && canCut(i)
         const press = (event: ThreeEvent<MouseEvent>) => {
           event.stopPropagation()
-          if (event.delta <= CLICK_SLOP_PX && canCut(i)) onCut({ module: index, wire: i })
+          if (event.delta > CLICK_SLOP_PX || !canCut(i)) return
+          setHovered(null)
+          onCut({ module: index, wire: i })
         }
         return (
           <group key={i}>
