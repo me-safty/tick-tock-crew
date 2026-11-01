@@ -123,6 +123,12 @@
     "black": "Black",
     "green": "Green"
   },
+  "waves": {
+    "smooth": "Smooth",
+    "square": "Square",
+    "ramp": "Ramp",
+    "spike": "Spike"
+  },
   "manual": {
     "wires": {
       "title": "Hidden wires",
@@ -133,6 +139,27 @@
       "step2": "Step 2. If two or more wires are the key color, those wires are the candidates. Otherwise, every wire that is not the key color is a candidate.",
       "step3": "Step 3. Look for candidates whose tag letter also appears in the serial number. If there are any, cut the one among them whose tag has the highest digit. If there are none, cut the candidate whose tag has the lowest digit.",
       "unique": "No two tags on one bomb share a digit, so exactly one wire fits. Cutting any other wire is a strike."
+    },
+    "keypad": {
+      "title": "Glyph keypad",
+      "intro": "The keypad has four keys, numbered 1 to 4 from the left. Each key carries a glyph: a frame (circle, triangle, square or arch) with a mark inside. The Operator sees the glyphs and the serial number. The Scanner sees which key is live.",
+      "step1": "Step 1. Find the ring below that holds three or four of the keypad's glyphs. A key whose glyph is not in that ring is a dud: never press it.",
+      "ring": "Ring",
+      "positions": "Glyphs by position",
+      "step2": "Step 2. Press the live key first.",
+      "step3": "Step 3. From the live key's glyph, walk around its ring: toward higher positions if the first digit of the serial number is even, toward lower positions if it is odd. The ring wraps: after the last position comes position 1, and before position 1 comes the last. Press each key as you reach its glyph, until every key except a dud is pressed.",
+      "strike": "Pressing a key out of turn is a strike. Keys already pressed stay pressed."
+    },
+    "dial": {
+      "title": "Frequency dial",
+      "intro": "The Scanner sees a waveform on the dial's screen. The Operator turns the dial, reads the frequency on its display and presses Send.",
+      "step1": "Step 1. Match the waveform's shape below, then take the base frequency from the column that fits the serial number.",
+      "shape": "Shape",
+      "withAE": "Serial has A or E",
+      "withoutAE": "Serial has no A or E",
+      "step2": "Step 2. Add 6 for each peak on the screen. A flat top counts as one peak.",
+      "step3": "Step 3. If the peaks only reach the dashed middle line, not the solid top line, subtract 9.",
+      "strike": "Send the result. Sending any other frequency is a strike."
     }
   },
   "errors": {
@@ -144,12 +171,15 @@
     "HOST_ONLY": "Only the host can start the match",
     "PLAYERS_NOT_READY": "All 3 players must be seated, online and ready",
     "MATCH_OVER": "The match is over",
-    "OPERATOR_ONLY": "Only the Operator can cut wires",
+    "OPERATOR_ONLY": "Only the Operator can touch the bomb",
     "TIME_UP": "Time is up",
     "MODULE_NOT_FOUND": "That module doesn't exist",
     "MODULE_ALREADY_SOLVED": "That module is already defused",
     "WIRE_NOT_FOUND": "That wire doesn't exist",
     "WIRE_ALREADY_CUT": "That wire is already cut",
+    "KEY_NOT_FOUND": "That key doesn't exist",
+    "KEY_ALREADY_PRESSED": "That key is already pressed",
+    "FREQUENCY_OFF_DIAL": "That frequency isn't on the dial",
     "NICKNAME_LENGTH": "Pick a nickname of 1 to {{max}} characters"
   }
 }
