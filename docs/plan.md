@@ -21,10 +21,12 @@ Original 3-player co-op bomb-defusal web game, built for play with friends. Same
 | --- | --- | --- | --- |
 | Hidden wires | wire colors; cuts wires | serial tags under insulation | cut rules (color × tag) |
 | Glyph keypad | 4 symbols; presses keys | which key is live | glyph tables → press order |
-| Pressure valve (real-time) | holds/releases valve | live pressure gauge | safe release band for this bomb |
+| Pressure valve (real-time) | handle color; holds/releases valve | spring coils, live pressure gauge | safe band table (handle × coils) |
 | Frequency dial | turns dial; submits | waveform overlay | waveform shape → frequency |
 
 Glyphs and rule tables are our own designs: each glyph is a frame (circle, triangle, square, arch) with a mark inside, drawn in code; the manual groups them into four rings. The dial's waveforms are smooth, square, ramp and spike traces.
+
+The valve's pressure slowly rises; holding the handle vents it and the needle falls. The Analyst finds the safe band (one of three 12-point bands, 6 points apart) from the handle color and the spring coils; the Operator lets go when the Scanner calls the needle inside it. Letting go outside the band, or the needle reaching 100, is a strike and puts the needle back at its start. Difficulty scales the rates: the needle spends 2.4–3 s (easy), 1.7–2.4 s (normal) or 1.3–1.7 s (hard) in the band.
 
 ## Stack
 
@@ -42,7 +44,7 @@ Glyphs and rule tables are our own designs: each glyph is a frame (circle, trian
 rooms     code, status: lobby|playing|paused|won|lost, seed, difficulty,
           endsAt, remainingMs (when paused), strikes, explodeJobId
 seats     roomId, role, sessionId, name, ready
-modules   roomId, index, kind, solved, progress (cuts, presses, valve events)
+modules   roomId, index, kind, solved, progress (cuts, presses, valve since + hold/release/reset events)
 pings     roomId, fromRole, target, createdAt
 signals   roomId, fromRole, toRole, kind: offer|answer|ice, payload
 presence  @convex-dev/presence component
@@ -53,7 +55,7 @@ presence  @convex-dev/presence component
 - **Hidden info:** server-filtered views. `match.view` resolves the caller's seat and returns only `viewFor(bomb, role)`. The full bomb is regenerated from the seed server-side and never sent.
 - **Timer:** `start` sets `endsAt` and `scheduler.runAt(endsAt, explode)`; clients render the countdown locally; `explode` no-ops unless still playing.
 - **Pause:** presence detects a drop → cancel the explode job, store `remainingMs`; resume reschedules.
-- **Valve:** pressure is a pure function of (seed, start, hold/release events). Clients animate it in `useFrame` using a server-clock offset (from a mutation returning `Date.now()`); the release mutation validates. Generous windows (~100 ms latency).
+- **Valve:** pressure is a pure function of (seed, start, hold/release/reset events) in `packages/rules`. Queries return the events and gauge parameters, never a current pressure. The Scanner animates it in `useFrame` with a server-clock offset (lowest-RTT of 5 calls to the `serverTime` mutation). `holdValve` and `releaseValve` stamp server time on arrival; the release recomputes the pressure and solves or strikes. Tolerance: the band plus 250 ms of venting either side. Hold and release are both delayed by the trip to the server, so steady latency cancels out (left over: rise × latency, about 0.02 points at 150 ms); the window covers the Scanner's call and the Operator's reaction. An untended valve bursts at 100: `scheduleBurst` schedules `burstValve` after every change, and the job recomputes, so a stale one does nothing.
 - **Voice:** 3-way P2P WebRTC mesh; signaling via the `signals` table (filtered by recipient, deleted after read); Cloudflare TURN credentials minted by a Convex action.
 - **Pings:** point-at pings and quick emotes synced through Convex.
 
@@ -64,9 +66,14 @@ presence  @convex-dev/presence component
 3. **Rules core + wires** — PRNG, bomb gen, role views, strikes, timer, win/explode, with tests.
 4. **3D scene** — table + bomb from primitives and Kenney CC0 props, seat cameras, wire interaction, Analyst manual UI, Scanner X-ray.
 5. **Arabic localization** — Arabic default (RTL), English toggle, i18next, Western digits.
-6. **Other modules** — M6a: Glyph keypad and Frequency dial; M6b: Pressure valve (clock offset).
+6. **Other modules**
+   - 6a **Keypad + dial** — Glyph keypad and Frequency dial.
+   - 6b **Pressure valve** — real-time valve, server-clock offset, burst job.
 7. **Voice + pings** — WebRTC mesh, Cloudflare TURN, pings and emotes.
-8. **Polish + deploy** — pause/reconnect, difficulty presets, deploy.
+8. **Crew characters** — first-person; the other two players visible as original characters who turn, point to highlight objects, gesture, emote and take short walks between spots; motion synced over the M7 WebRTC data channel; Kenney CC0 rigged models; the Analyst's booth has a window with blinds hiding the bomb.
+9. **Polish + deploy** — pause/reconnect, difficulty presets, deploy.
+
+Then a full-game QA pass.
 
 From M6 on, every new user-facing string ships in both `ar` and `en` (`apps/web/src/i18n/locales`), and new backend errors are codes in `packages/backend/convex/errors.ts` with a translation in both.
 

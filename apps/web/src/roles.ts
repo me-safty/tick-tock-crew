@@ -14,3 +14,5 @@ export type OperatorAction =
   | ({ readonly kind: "cut" } & Target<FunctionArgs<typeof api.match.cutWire>>)
   | ({ readonly kind: "press" } & Target<FunctionArgs<typeof api.match.pressKey>>)
   | ({ readonly kind: "tune" } & Target<FunctionArgs<typeof api.match.tuneDial>>)
+  | ({ readonly kind: "hold" } & Target<FunctionArgs<typeof api.match.holdValve>>)
+  | ({ readonly kind: "release" } & Target<FunctionArgs<typeof api.match.releaseValve>>)

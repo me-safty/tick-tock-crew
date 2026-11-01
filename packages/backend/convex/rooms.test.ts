@@ -127,6 +127,7 @@ describe("startMatch", () => {
       { index: 0, kind: "wires", solved: false, progress: { cut: [] } },
       { index: 1, kind: "keypad", solved: false, progress: { pressed: [] } },
       { index: 2, kind: "dial", solved: false },
+      { index: 3, kind: "valve", solved: false, progress: { since: room?.status === "playing" && room.endsAt - 5 * 60_000, events: [] } },
     ])
     await expect(t.mutation(api.rooms.leaveSeat, { code, sessionId: "b" })).rejects.toMatchObject({
       data: { code: "MATCH_ALREADY_STARTED" },

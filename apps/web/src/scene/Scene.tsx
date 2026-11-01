@@ -1,4 +1,5 @@
 import { Canvas } from "@react-three/fiber"
+import type { RefObject } from "react"
 import type { Match, OperatorAction } from "../roles"
 import { Bomb } from "./Bomb"
 import { Booth } from "./Booth"
@@ -9,6 +10,7 @@ import type { Seat } from "./look"
 import { usePrefersReducedMotion } from "./motion"
 import { SeatCamera } from "./SeatCamera"
 import { OperatorKeypad, ScannerKeypad } from "./Keypad"
+import { OperatorValve, ScannerValve, type ValveControl } from "./Valve"
 import { OperatorWires, ScannerWires } from "./Wires"
 import { Workshop } from "./Workshop"
 
@@ -27,6 +29,9 @@ type SceneProps = {
   readonly pending: OperatorAction | null
   readonly onAct: (action: OperatorAction) => void
   readonly dial: DialControl
+  readonly valve: ValveControl
+  /** Server time minus local time, for the Scanner's gauge. */
+  readonly clockOffset: RefObject<number>
   readonly onOpenManual: () => void
 }
 
@@ -50,7 +55,7 @@ export function Scene({ match, finale, ...roleProps }: SceneProps) {
   )
 }
 
-function RoleSet({ match, pending, onAct, dial, onOpenManual }: Omit<SceneProps, "finale">) {
+function RoleSet({ match, pending, onAct, dial, valve, clockOffset, onOpenManual }: Omit<SceneProps, "finale">) {
   const view = match.view
   if (!view) return <Workshop />
   const exploded = match.status === "lost"
@@ -97,6 +102,8 @@ function RoleSet({ match, pending, onAct, dial, onOpenManual }: Omit<SceneProps,
                         onSend={() => onAct({ kind: "tune", module: index, frequency: dial.frequency })}
                       />
                     )
+                  case "valve":
+                    return <OperatorValve key={index} index={index} module={module} valve={valve} />
                   default: {
                     const _exhaustive: never = module
                     return _exhaustive
@@ -121,6 +128,8 @@ function RoleSet({ match, pending, onAct, dial, onOpenManual }: Omit<SceneProps,
                     return <ScannerKeypad key={index} index={index} module={module} />
                   case "dial":
                     return <ScannerDial key={index} index={index} module={module} />
+                  case "valve":
+                    return <ScannerValve key={index} index={index} module={module} clockOffset={clockOffset} />
                   default: {
                     const _exhaustive: never = module
                     return _exhaustive

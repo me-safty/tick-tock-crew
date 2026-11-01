@@ -1,10 +1,13 @@
 import {
   type ActionError,
   type Bomb,
+  burstValve as burstValveRule,
   COLORS,
   cutWire as cutWireRule,
   FRAMES,
   generateBomb,
+  HANDLES,
+  holdValve as holdValveRule,
   MANUAL_TEXT,
   MARKS,
   type MatchState,
@@ -12,16 +15,19 @@ import {
   matchStatus,
   type Outcome,
   pressKey as pressKeyRule,
+  releaseValve as releaseValveRule,
   tuneDial as tuneDialRule,
   viewFor,
   WAVE_SHAPES,
 } from "@tick-tock-crew/rules"
 import { v } from "convex/values"
-import { Effect } from "effect"
+import { Effect, Option } from "effect"
 import type { Doc } from "./_generated/dataModel"
 import { type AppError, appError } from "./errors"
 import { internalMutation, mutation, type MutationCtx, query, type QueryCtx } from "./_generated/server"
 import { findRoom, findSeat, getRoom } from "./rooms"
+import { valveEvent } from "./schema"
+import { scheduleBurst } from "./valve"
 
 type MatchRoom = Exclude<Doc<"rooms">, { status: "lobby" }>
 type PlayingRoom = Extract<MatchRoom, { status: "playing" }>
@@ -75,6 +81,7 @@ const manualCell = v.union(
   v.object({ kind: v.literal("number"), value: v.number() }),
   v.object({ kind: v.literal("glyphs"), glyphs: v.array(glyph) }),
   v.object({ kind: v.literal("wave"), shape: literals(WAVE_SHAPES) }),
+  v.object({ kind: v.literal("band"), low: v.number(), high: v.number() }),
 )
 const manualBlock = v.union(
   v.object({ kind: v.literal("text"), text: manualText }),
@@ -90,6 +97,7 @@ const roleView = v.union(
         v.object({ kind: v.literal("wires"), solved, wires: v.array(v.object({ color, cut })) }),
         v.object({ kind: v.literal("keypad"), solved, keys: v.array(v.object({ glyph, pressed })) }),
         v.object({ kind: v.literal("dial"), solved }),
+        v.object({ kind: v.literal("valve"), solved, handle: literals(HANDLES), held: v.boolean() }),
       ),
     ),
   }),
@@ -104,12 +112,20 @@ const roleView = v.union(
         }),
         v.object({ kind: v.literal("keypad"), solved, keys: v.array(v.object({ live: v.boolean(), pressed })) }),
         v.object({ kind: v.literal("dial"), solved, waveform }),
+        v.object({
+          kind: v.literal("valve"),
+          solved,
+          coils: v.number(),
+          gauge: v.object({ start: v.number(), rise: v.number(), vent: v.number() }),
+          since: v.number(),
+          events: v.array(valveEvent),
+        }),
       ),
     ),
   }),
   v.object({
     role: v.literal("analyst"),
-    modules: v.array(v.object({ kind: literals(["wires", "keypad", "dial"]), solved })),
+    modules: v.array(v.object({ kind: literals(["wires", "keypad", "dial", "valve"]), solved })),
     manual: v.array(v.object({ title: manualText, blocks: v.array(manualBlock) })),
   }),
 )
@@ -154,6 +170,8 @@ function actionError(error: ActionError): AppError {
       return { code: "KEY_ALREADY_PRESSED" }
     case "FrequencyOffDial":
       return { code: "FREQUENCY_OFF_DIAL" }
+    case "ValveNotHeld":
+      return { code: "VALVE_NOT_HELD" }
     default: {
       const _exhaustive: never = error
       return _exhaustive
@@ -161,30 +179,46 @@ function actionError(error: ActionError): AppError {
   }
 }
 
-/** Runs one Operator action on the room's bomb, saves the touched module and ends the match on a win or a third strike. */
-async function operatorAction<Kind extends string>(
+/** Saves the module an outcome touched and the strikes, and ends the match on a win or a third strike. */
+async function settle(
   ctx: MutationCtx,
-  { code, sessionId, module }: { readonly code: string; readonly sessionId: string; readonly module: number },
-  act: (bomb: Bomb, state: MatchState) => Effect.Effect<Outcome<Kind>, ActionError>,
-): Promise<Kind> {
-  const room = await getRoom(ctx, code)
-  if (room.status !== "playing") throw appError({ code: "MATCH_OVER" })
-  const seat = await findSeat(ctx, { roomId: room._id, sessionId })
-  if (seat?.role !== "operator") throw appError({ code: "OPERATOR_ONLY" })
-  if (Date.now() >= room.endsAt) throw appError({ code: "TIME_UP" })
-
-  const { bomb, modules, state } = await loadMatch(ctx, room)
-  const outcome = Effect.runSync(act(bomb, state).pipe(Effect.mapError((error) => appError(actionError(error)))))
+  { room, bomb, modules, module, outcome }: {
+    readonly room: PlayingRoom
+    readonly bomb: Bomb
+    readonly modules: ReadonlyArray<Doc<"modules">>
+    readonly module: number
+    readonly outcome: Outcome<string>
+  },
+) {
   const moduleDoc = modules[module]
   const next = outcome.state.modules[module]
   if (moduleDoc && next) await ctx.db.replace("modules", moduleDoc._id, { roomId: room._id, index: moduleDoc.index, ...next })
   const status = matchStatus(outcome.state)
   if (status === "playing") {
     await ctx.db.patch("rooms", room._id, { strikes: outcome.state.strikes })
+    await scheduleBurst(ctx, { roomId: room._id, module, bomb, state: outcome.state })
   } else {
     await ctx.scheduler.cancel(room.explodeJobId)
     await ctx.db.replace("rooms", room._id, endedRoom({ room, status, strikes: outcome.state.strikes }))
   }
+}
+
+/** Runs one Operator action on the room's bomb at the server's time and settles its outcome. */
+async function operatorAction<Kind extends string>(
+  ctx: MutationCtx,
+  { code, sessionId, module }: { readonly code: string; readonly sessionId: string; readonly module: number },
+  act: (bomb: Bomb, state: MatchState, now: number) => Effect.Effect<Outcome<Kind>, ActionError>,
+): Promise<Kind> {
+  const room = await getRoom(ctx, code)
+  if (room.status !== "playing") throw appError({ code: "MATCH_OVER" })
+  const seat = await findSeat(ctx, { roomId: room._id, sessionId })
+  if (seat?.role !== "operator") throw appError({ code: "OPERATOR_ONLY" })
+  const now = Date.now()
+  if (now >= room.endsAt) throw appError({ code: "TIME_UP" })
+
+  const { bomb, modules, state } = await loadMatch(ctx, room)
+  const outcome = Effect.runSync(act(bomb, state, now).pipe(Effect.mapError((error) => appError(actionError(error)))))
+  await settle(ctx, { room, bomb, modules, module, outcome })
   return outcome.kind
 }
 
@@ -208,4 +242,43 @@ export const tuneDial = mutation({
   returns: solvedOrStrike,
   handler: (ctx, { frequency, ...args }) =>
     operatorAction(ctx, args, (bomb, state) => tuneDialRule(bomb, state, { module: args.module, frequency })),
+})
+
+/** Starts venting the valve. Both this and releaseValve are stamped with the server's time on arrival. */
+export const holdValve = mutation({
+  args: target,
+  returns: v.union(v.literal("held"), v.literal("burst")),
+  handler: (ctx, args) => operatorAction(ctx, args, (bomb, state, now) => holdValveRule(bomb, state, { module: args.module, at: now })),
+})
+
+/** Seals the valve: solved if the needle is in the safe band right now, a strike otherwise. */
+export const releaseValve = mutation({
+  args: target,
+  returns: solvedOrStrike,
+  handler: (ctx, args) =>
+    operatorAction(ctx, args, (bomb, state, now) => releaseValveRule(bomb, state, { module: args.module, at: now })),
+})
+
+/** The server's clock, so the Scanner can line the gauge up with the times on valve events. */
+export const serverTime = mutation({
+  args: {},
+  returns: v.number(),
+  handler: async () => Date.now(),
+})
+
+/** Scheduled by scheduleBurst: a strike if the valve's needle has topped out, and the needle goes back to its start. */
+export const burstValve = internalMutation({
+  args: { roomId: v.id("rooms"), module: v.number() },
+  returns: v.null(),
+  handler: async (ctx, { roomId, module }) => {
+    const room = await ctx.db.get("rooms", roomId)
+    const now = Date.now()
+    if (room?.status !== "playing" || now >= room.endsAt) return null
+    const { bomb, modules, state } = await loadMatch(ctx, room)
+    const outcome = Effect.runSync(Effect.option(burstValveRule(bomb, state, { module, at: now })))
+    if (Option.isSome(outcome) && outcome.value.kind === "burst") {
+      await settle(ctx, { room, bomb, modules, module, outcome: outcome.value })
+    }
+    return null
+  },
 })

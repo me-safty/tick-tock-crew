@@ -11,6 +11,8 @@ import { ManualSheet } from "./ManualSheet"
 import type { Lobby, Match, OperatorAction, RoleView, ViewOf } from "./roles"
 import { navigate } from "./router"
 import type { DialControl } from "./scene/Dial"
+import type { HoldSource, ValveControl } from "./scene/Valve"
+import { useServerClockOffset } from "./serverClock"
 
 /** Starts downloading the 3D scene, so the lobby can fetch it before the match begins. */
 export const preloadScene = () => import("./scene/Scene")
@@ -44,6 +46,13 @@ function MatchInPlay({ code, match }: { readonly code: string; readonly match: M
   const role = match.view?.role ?? "spectator"
   const dialModule = match.view?.role === "operator" ? match.view.modules.findIndex((module) => module.kind === "dial") : -1
   const dialArmed = dialModule >= 0 && match.view?.modules[dialModule]?.solved === false && !ended
+  const valveModule = match.view?.role === "operator" ? match.view.modules.findIndex((module) => module.kind === "valve") : -1
+  const valve = useValve({
+    armed: valveModule >= 0 && match.view?.modules[valveModule]?.solved === false && !ended,
+    onHold: () => void operator.act({ kind: "hold", module: valveModule }),
+    onRelease: () => void operator.act({ kind: "release", module: valveModule }),
+  })
+  const clockOffset = useServerClockOffset(role === "scanner")
   const sendFrequency = () => {
     if (operator.pending || !dialArmed) return
     void operator.act({ kind: "tune", module: dialModule, frequency: dial.control.frequency })
@@ -57,10 +66,13 @@ function MatchInPlay({ code, match }: { readonly code: string; readonly match: M
           pending={operator.pending}
           onAct={(action) => void operator.act(action)}
           dial={dial.control}
+          valve={valve.control}
+          clockOffset={clockOffset}
           onOpenManual={() => setManualOpen(true)}
         />
       </Suspense>
       {dialArmed && <DialInput dial={dial} onSend={sendFrequency} />}
+      {valve.control.armed && <ValveInput valve={valve} />}
       {role === "scanner" && <div className="xray-lens" data-label={t("match.xray")} aria-hidden />}
       <header className="hud">
         <div className="hud-role">
@@ -108,6 +120,8 @@ function useOperator(code: string) {
   const cutWire = useMutation(api.match.cutWire)
   const pressKey = useMutation(api.match.pressKey)
   const tuneDial = useMutation(api.match.tuneDial)
+  const holdValve = useMutation(api.match.holdValve)
+  const releaseValve = useMutation(api.match.releaseValve)
   const { error, run } = useMutationError()
   const [pending, setPending] = useState<OperatorAction | null>(null)
   const [feedback, setFeedback] = useState<Awaited<ReturnType<typeof send>> | null>(null)
@@ -131,6 +145,14 @@ function useOperator(code: string) {
         const outcome = await tuneDial({ code, sessionId, module: action.module, frequency: action.frequency })
         return { outcome, text: `dial.${outcome}` } as const
       }
+      case "hold": {
+        const outcome = await holdValve({ code, sessionId, module: action.module })
+        return outcome === "burst" ? ({ outcome: "strike", text: "valve.burst" } as const) : null
+      }
+      case "release": {
+        const outcome = await releaseValve({ code, sessionId, module: action.module })
+        return { outcome, text: `valve.${outcome}` } as const
+      }
       default: {
         const _exhaustive: never = action
         return _exhaustive
@@ -139,10 +161,14 @@ function useOperator(code: string) {
   }
 
   const act = async (action: OperatorAction) => {
-    setPending(action)
-    setFeedback(null)
-    setFeedback(await run(send(action)))
-    setPending(null)
+    // The valve answers in real time, so working it never locks the rest of the bomb.
+    const locks = action.kind !== "hold" && action.kind !== "release"
+    if (locks) setPending(action)
+    // A hold right after a release must leave that release's result on screen.
+    if (action.kind !== "hold") setFeedback(null)
+    const result = await run(send(action))
+    if (result) setFeedback(result)
+    if (locks) setPending(null)
   }
   return { pending, feedback, error, act }
 }
@@ -183,6 +209,102 @@ function DialInput({
       onKeyDown={(event) => {
         if (event.key === "Enter") onSend()
       }}
+    />
+  )
+}
+
+/** A press shorter than this is a tap: it selects the valve without venting, so it never costs a strike. */
+const TAP_MS = 150
+
+function useValve({ armed, onHold, onRelease }: { armed: boolean; onHold: () => void; onRelease: () => void }) {
+  const [held, setHeld] = useState(false)
+  const [focused, setFocused] = useState(false)
+  // Window listeners outlive the render that set them up, so they read the hold from refs.
+  const holding = useRef<HoldSource | null>(null)
+  const pendingHold = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const button = useRef<HTMLButtonElement>(null)
+  const latestHold = useRef(onHold)
+  latestHold.current = onHold
+  const press = (by: HoldSource) => {
+    if (holding.current || !armed) return
+    holding.current = by
+    setHeld(true)
+    pendingHold.current = setTimeout(() => {
+      pendingHold.current = null
+      latestHold.current()
+    }, TAP_MS)
+  }
+  const letGo = () => {
+    if (!holding.current) return
+    holding.current = null
+    setHeld(false)
+    if (pendingHold.current) {
+      clearTimeout(pendingHold.current)
+      pendingHold.current = null
+      return
+    }
+    onRelease()
+  }
+  // A click on the canvas takes focus off the button, which must not end a hold the pointer just started.
+  const blurred = () => {
+    setFocused(false)
+    if (holding.current === "key") letGo()
+  }
+  const latestLetGo = useRef(letGo)
+  latestLetGo.current = letGo
+  useEffect(() => {
+    // Without focus the page never sees the key or button come up, so a hold would be stuck venting.
+    const away = () => {
+      if (document.hidden || !document.hasFocus()) latestLetGo.current()
+    }
+    window.addEventListener("blur", away)
+    document.addEventListener("visibilitychange", away)
+    return () => {
+      window.removeEventListener("blur", away)
+      document.removeEventListener("visibilitychange", away)
+      if (pendingHold.current) clearTimeout(pendingHold.current)
+    }
+  }, [])
+  const control: ValveControl = {
+    armed,
+    held,
+    focused,
+    press,
+    letGo,
+    focus: () => button.current?.focus({ preventScroll: true }),
+  }
+  return { control, button, blurred, setFocused }
+}
+
+const HOLD_KEYS = new Set([" ", "Enter"])
+
+/** The valve as a native button for the keyboard and screen readers: holding Space or Enter holds the valve. */
+function ValveInput({
+  valve: { control, button, setFocused, blurred },
+}: {
+  readonly valve: ReturnType<typeof useValve>
+}) {
+  const { t } = useTranslation()
+  return (
+    <button
+      ref={button}
+      type="button"
+      className="sr-only"
+      aria-label={t("match.valve.label")}
+      aria-pressed={control.held}
+      aria-keyshortcuts="Space Enter"
+      onKeyDown={(event) => {
+        if (!HOLD_KEYS.has(event.key)) return
+        event.preventDefault()
+        if (!event.repeat) control.press("key")
+      }}
+      onKeyUp={(event) => {
+        if (!HOLD_KEYS.has(event.key)) return
+        event.preventDefault()
+        control.letGo()
+      }}
+      onFocus={() => setFocused(true)}
+      onBlur={blurred}
     />
   )
 }

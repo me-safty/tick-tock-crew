@@ -3,6 +3,7 @@ import type { Bomb, BombModule } from "./bomb"
 import { DIAL_RANGE, solveDial } from "./dial"
 import { solveKeypad } from "./keypad"
 import { MutableArray } from "./manual"
+import { burstAt, isHeld, pressureAt, sealsInBand, solveValve, type ValveEvent, ValveProgress } from "./valve"
 import { solveWires } from "./wires"
 
 export const MAX_STRIKES = 3
@@ -14,6 +15,7 @@ export const ModuleState = Schema.Union([
   /** `pressed` holds the right presses so far, in order; wrong presses only add strikes. */
   Schema.Struct({ kind: Schema.Literal("keypad"), solved, progress: Schema.Struct({ pressed: MutableArray(Schema.Int) }) }),
   Schema.Struct({ kind: Schema.Literal("dial"), solved }),
+  Schema.Struct({ kind: Schema.Literal("valve"), solved, progress: ValveProgress }),
 ])
 export type ModuleState = typeof ModuleState.Type
 
@@ -23,7 +25,7 @@ export type MatchState = typeof MatchState.Type
 export const MatchStatus = Schema.Literals(["playing", "won", "lost"])
 export type MatchStatus = typeof MatchStatus.Type
 
-function initialModuleState({ kind }: BombModule): ModuleState {
+function initialModuleState({ kind }: BombModule, startedAt: number): ModuleState {
   switch (kind) {
     case "wires":
       return { kind, solved: false, progress: { cut: [] } }
@@ -31,6 +33,8 @@ function initialModuleState({ kind }: BombModule): ModuleState {
       return { kind, solved: false, progress: { pressed: [] } }
     case "dial":
       return { kind, solved: false }
+    case "valve":
+      return { kind, solved: false, progress: { since: startedAt, events: [] } }
     default: {
       const _exhaustive: never = kind
       return _exhaustive
@@ -38,8 +42,9 @@ function initialModuleState({ kind }: BombModule): ModuleState {
   }
 }
 
-export function initialState(bomb: Bomb): MatchState {
-  return { strikes: 0, modules: bomb.modules.map(initialModuleState) }
+/** A fresh match; `startedAt` is the server time the valve starts building pressure. */
+export function initialState(bomb: Bomb, { startedAt }: { readonly startedAt: number }): MatchState {
+  return { strikes: 0, modules: bomb.modules.map((module) => initialModuleState(module, startedAt)) }
 }
 
 export function matchStatus(state: MatchState): MatchStatus {
@@ -60,11 +65,14 @@ export class FrequencyOffDial extends Schema.TaggedError<FrequencyOffDial>()("Fr
   frequency: Schema.Number,
 }) {}
 
+export class ValveNotHeld extends Schema.TaggedError<ValveNotHeld>()("ValveNotHeld", {}) {}
+
 type TargetError = MatchOver | ModuleNotFound | ModuleAlreadySolved
 export type CutWireError = TargetError | WireNotFound | WireAlreadyCut
 export type PressKeyError = TargetError | KeyNotFound | KeyAlreadyPressed
 export type TuneDialError = TargetError | FrequencyOffDial
-export type ActionError = CutWireError | PressKeyError | TuneDialError
+export type ReleaseValveError = TargetError | ValveNotHeld
+export type ActionError = CutWireError | PressKeyError | TuneDialError | ReleaseValveError
 
 export type Outcome<Kind extends string> = { readonly kind: Kind; readonly state: MatchState }
 
@@ -139,4 +147,67 @@ export const tuneDial = (
 
     const right = frequency === solveDial(bomb.edgework.serial, bombModule.waveform)
     return { kind: right ? "solved" : "strike", state: settle(state, { module, next: { ...moduleState, solved: right }, right }) }
+  })
+
+type ValveAction = { readonly module: number; readonly at: number }
+
+/** The valve an action targets, with its events stamped no earlier than the last one, so the history stays in order. */
+const targetValve = (bomb: Bomb, state: MatchState, { module, at }: ValveAction) =>
+  Effect.gen(function* () {
+    const { bombModule, moduleState } = yield* target(bomb, state, module)
+    if (bombModule.kind !== "valve" || moduleState.kind !== "valve") return yield* new ModuleNotFound({ module })
+    const { since, events } = moduleState.progress
+    const stamp = Math.max(at, since, events.at(-1)?.at ?? since)
+    const record = (...kinds: ReadonlyArray<ValveEvent["kind"]>) => ({
+      since,
+      events: [...events, ...kinds.map((kind) => ({ kind, at: stamp }))],
+    })
+    return { valve: bombModule, moduleState, stamp, record }
+  })
+
+/**
+ * Starts venting. Holding a valve that is already held changes nothing. A valve that topped out before the hold
+ * arrived bursts first, even if its scheduled burst hasn't run yet.
+ */
+export const holdValve = (
+  bomb: Bomb,
+  state: MatchState,
+  action: ValveAction,
+): Effect.Effect<Outcome<"held" | "burst">, TargetError> =>
+  Effect.gen(function* () {
+    const { valve, moduleState, stamp, record } = yield* targetValve(bomb, state, action)
+    if (isHeld(valve.gauge, moduleState.progress)) return { kind: "held", state }
+    const due = burstAt(valve.gauge, moduleState.progress)
+    const burst = due !== null && due <= stamp
+    const next = { ...moduleState, progress: burst ? record("reset", "hold") : record("hold") }
+    return { kind: burst ? "burst" : "held", state: settle(state, { module: action.module, next, right: !burst }) }
+  })
+
+/** Seals the valve and judges the pressure at that moment. A strike puts the needle back at its start. */
+export const releaseValve = (
+  bomb: Bomb,
+  state: MatchState,
+  action: ValveAction,
+): Effect.Effect<Outcome<"solved" | "strike">, ReleaseValveError> =>
+  Effect.gen(function* () {
+    const { valve, moduleState, stamp, record } = yield* targetValve(bomb, state, action)
+    if (!isHeld(valve.gauge, moduleState.progress)) return yield* new ValveNotHeld()
+    const pressure = pressureAt(valve.gauge, moduleState.progress, stamp)
+    const right = sealsInBand({ band: solveValve(valve), pressure, vent: valve.gauge.vent })
+    const next = { ...moduleState, solved: right, progress: right ? record("release") : record("release", "reset") }
+    return { kind: right ? "solved" : "strike", state: settle(state, { module: action.module, next, right }) }
+  })
+
+/** Bursts the valve if its needle has reached the top by `at`: a strike, and the needle goes back to its start. */
+export const burstValve = (
+  bomb: Bomb,
+  state: MatchState,
+  action: ValveAction,
+): Effect.Effect<Outcome<"burst" | "steady">, TargetError> =>
+  Effect.gen(function* () {
+    const { valve, moduleState, stamp, record } = yield* targetValve(bomb, state, action)
+    const due = burstAt(valve.gauge, moduleState.progress)
+    if (due === null || due > stamp) return { kind: "steady", state }
+    const next = { ...moduleState, progress: record("reset") }
+    return { kind: "burst", state: settle(state, { module: action.module, next, right: false }) }
   })

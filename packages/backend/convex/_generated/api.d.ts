@@ -12,6 +12,7 @@ import type * as errors from "../errors.js";
 import type * as match from "../match.js";
 import type * as presence from "../presence.js";
 import type * as rooms from "../rooms.js";
+import type * as valve from "../valve.js";
 
 import type {
   ApiFromModules,
@@ -24,6 +25,7 @@ declare const fullApi: ApiFromModules<{
   match: typeof match;
   presence: typeof presence;
   rooms: typeof rooms;
+  valve: typeof valve;
 }>;
 
 /**

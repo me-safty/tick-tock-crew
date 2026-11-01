@@ -6,6 +6,7 @@ import type { Doc, Id } from "./_generated/dataModel"
 import { appError } from "./errors"
 import { mutation, query, type QueryCtx } from "./_generated/server"
 import { role } from "./schema"
+import { scheduleBurst } from "./valve"
 
 // Presence rooms are keyed by room code and users by guest sessionId.
 export const presence = new Presence(components.presence)
@@ -153,7 +154,8 @@ export const startMatch = mutation({
       throw appError({ code: "PLAYERS_NOT_READY" })
     }
     const seed = Math.floor(Math.random() * 2 ** 32)
-    const endsAt = Date.now() + MATCH_DURATION_MS
+    const startedAt = Date.now()
+    const endsAt = startedAt + MATCH_DURATION_MS
     const explodeJobId = await ctx.scheduler.runAt(endsAt, internal.match.explode, { roomId: room._id })
     await ctx.db.patch("rooms", room._id, {
       status: "playing",
@@ -163,8 +165,11 @@ export const startMatch = mutation({
       strikes: 0,
       explodeJobId,
     })
-    for (const [index, module] of initialState(generateBomb(seed, DIFFICULTY)).modules.entries()) {
+    const bomb = generateBomb(seed, DIFFICULTY)
+    const state = initialState(bomb, { startedAt })
+    for (const [index, module] of state.modules.entries()) {
       await ctx.db.insert("modules", { roomId: room._id, index, ...module })
+      await scheduleBurst(ctx, { roomId: room._id, module: index, bomb, state })
     }
     return null
   },

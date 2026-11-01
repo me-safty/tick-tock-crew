@@ -138,6 +138,16 @@ describe("generateBomb", () => {
               "shape": "ramp",
             },
           },
+          {
+            "coils": 2,
+            "gauge": {
+              "rise": 0.12,
+              "start": 66,
+              "vent": 5,
+            },
+            "handle": "red",
+            "kind": "valve",
+          },
         ],
       }
     `)

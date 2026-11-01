@@ -11,6 +11,11 @@ const matchFields = { ...roomFields, seed: v.number(), difficulty, endsAt: v.num
 
 const moduleFields = { roomId: v.id("rooms"), index: v.number(), solved: v.boolean() }
 
+export const valveEvent = v.object({
+  kind: v.union(v.literal("hold"), v.literal("release"), v.literal("reset")),
+  at: v.number(),
+})
+
 export default defineSchema({
   rooms: defineTable(
     v.union(
@@ -24,6 +29,11 @@ export default defineSchema({
       v.object({ ...moduleFields, kind: v.literal("wires"), progress: v.object({ cut: v.array(v.number()) }) }),
       v.object({ ...moduleFields, kind: v.literal("keypad"), progress: v.object({ pressed: v.array(v.number()) }) }),
       v.object({ ...moduleFields, kind: v.literal("dial") }),
+      v.object({
+        ...moduleFields,
+        kind: v.literal("valve"),
+        progress: v.object({ since: v.number(), events: v.array(valveEvent) }),
+      }),
     ),
   ).index("by_room_and_index", ["roomId", "index"]),
   seats: defineTable({

@@ -33,6 +33,15 @@ export const MANUAL_TEXT = [
   "dial.step2",
   "dial.step3",
   "dial.strike",
+  "valve.title",
+  "valve.intro",
+  "valve.step1",
+  "valve.handle",
+  "valve.twoCoils",
+  "valve.threeCoils",
+  "valve.fourCoils",
+  "valve.step2",
+  "valve.strike",
 ] as const
 const ManualText = Schema.Literals(MANUAL_TEXT)
 
@@ -43,6 +52,8 @@ const ManualCell = Schema.Union([
   /** A ring of glyphs in position order, starting at position 1. */
   Schema.Struct({ kind: Schema.Literal("glyphs"), glyphs: MutableArray(Glyph) }),
   Schema.Struct({ kind: Schema.Literal("wave"), shape: WaveShape }),
+  /** A range on the valve's gauge, both ends included. */
+  Schema.Struct({ kind: Schema.Literal("band"), low: Schema.Int, high: Schema.Int }),
 ])
 
 export const ManualBlock = Schema.Union([

@@ -92,15 +92,23 @@
       "dial": {
         "solved": "Frequency locked. Module defused.",
         "strike": "Wrong frequency. Strike!"
+      },
+      "valve": {
+        "solved": "Sealed inside the band. Valve defused.",
+        "strike": "Sealed outside the band. Strike!",
+        "burst": "The valve burst before you grabbed it. Strike!"
       }
     },
     "dial": {
       "label": "Frequency dial. Enter sends the frequency."
     },
+    "valve": {
+      "label": "Pressure valve. Hold Space or Enter to vent; let go to seal."
+    },
     "hint": {
       "noSeat": "You don't hold a seat in this match.",
-      "operator": "Drag to look around · Click wires to cut and keys to press · Turn the dial by dragging it, or click it and use the arrow keys",
-      "scanner": "Drag to look around · Read the wire tags, the live key and the waveform to your crew",
+      "operator": "Drag to look around · Click wires to cut and keys to press · Turn the dial by dragging it, or click it and use the arrow keys · Hold the valve's handle, or Space once it's clicked, to vent",
+      "scanner": "Drag to look around · Read the wire tags, the live key, the waveform and the valve's coils to your crew, and call out its pressure",
       "analyst": "Drag to look around",
       "openManual": "Open the manual"
     },
@@ -128,7 +136,9 @@
     "serial": "SERIAL",
     "safe": "SAFE",
     "boom": "BOOM",
-    "send": "SEND"
+    "send": "SEND",
+    "holdToVent": "HOLD TO VENT",
+    "vent": "VENT"
   },
   "colors": {
     "red": "Red",
@@ -175,6 +185,17 @@
       "step2": "Step 2. Add 6 for each peak on the screen. A flat top counts as one peak.",
       "step3": "Step 3. If the peaks only reach the dashed middle line, not the solid top line, subtract 9.",
       "strike": "Send the result. Sending any other frequency is a strike."
+    },
+    "valve": {
+      "title": "Pressure valve",
+      "intro": "Pressure slowly builds inside the valve. While the Operator holds the valve's handle, it vents and the pressure falls; letting go seals it again. The Operator sees the handle's color. The Scanner sees the spring's coils inside the valve and reads the pressure, from 0 to 100, on its gauge.",
+      "step1": "Step 1. Find the handle's color and the number of coils below to get the safe band.",
+      "handle": "Handle color",
+      "twoCoils": "2 coils",
+      "threeCoils": "3 coils",
+      "fourCoils": "4 coils",
+      "step2": "Step 2. The Operator holds the handle while the Scanner watches the needle fall, and lets go when the Scanner calls that it is inside the band. Both ends of the band count.",
+      "strike": "Letting go outside the band is a strike. If the needle reaches 100, the valve bursts: also a strike. After either, the needle jumps back to where it started."
     }
   },
   "errors": {
@@ -195,6 +216,7 @@
     "KEY_NOT_FOUND": "That key doesn't exist",
     "KEY_ALREADY_PRESSED": "That key is already pressed",
     "FREQUENCY_OFF_DIAL": "That frequency isn't on the dial",
+    "VALVE_NOT_HELD": "Nobody is holding the valve",
     "NICKNAME_LENGTH": "Pick a nickname of 1 to {{max}} characters"
   }
 }
