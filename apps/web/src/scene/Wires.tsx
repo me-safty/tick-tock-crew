@@ -3,14 +3,14 @@ import { type ThreeEvent, useFrame } from "@react-three/fiber"
 import type { COLORS } from "@tick-tock-crew/rules"
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react"
 import { CatmullRomCurve3, type Group, MathUtils, TubeGeometry, Vector3 } from "three"
-import type { ViewOf, WireRef } from "../roles"
+import type { ViewOf } from "../roles"
 import { MONO_FONT, useDrawnTexture } from "./labels"
-import { MODULE_SLOTS, type Rect } from "./layout"
+import { type Rect, slotRect } from "./layout"
 import { CLICK_SLOP_PX } from "./look"
-import { Ink, Paint, Toon, XRAY } from "./materials"
+import { HOVER, Ink, Paint, Toon, XRAY } from "./materials"
 
-type OperatorModule = ViewOf<"operator">["modules"][number]
-type ScannerModule = ViewOf<"scanner">["modules"][number]
+type OperatorModule = Extract<ViewOf<"operator">["modules"][number], { kind: "wires" }>
+type ScannerModule = Extract<ViewOf<"scanner">["modules"][number], { kind: "wires" }>
 
 const WIRE_COLORS = {
   red: "#e5484d",
@@ -21,12 +21,9 @@ const WIRE_COLORS = {
   green: "#30a46c",
 } as const satisfies Record<(typeof COLORS)[number], string>
 
-const HOVER = "#ffc24a"
 const WIRE_RADIUS = 0.011
 const TERMINAL_INSET = 0.075
 const MARGIN = 0.035
-/** A press that moves farther than this is a look-around drag, not a click. */
-
 function wireLayout({ rect, count }: { rect: Rect; count: number }) {
   const span = rect.width - 2 * TERMINAL_INSET
   const usable = rect.height - 2 * MARGIN
@@ -36,12 +33,6 @@ function wireLayout({ rect, count }: { rect: Rect; count: number }) {
     spacing,
     ys: Array.from({ length: count }, (_, i) => usable / 2 - spacing * (i + 0.5)),
   }
-}
-
-function slotOf(index: number) {
-  const rect = MODULE_SLOTS[index]
-  if (!rect) throw new Error(`The bomb has no slot ${index}`)
-  return rect
 }
 
 export function OperatorWires({
@@ -55,9 +46,9 @@ export function OperatorWires({
   readonly module: OperatorModule
   readonly pending: number | null
   readonly locked: boolean
-  readonly onCut: (ref: WireRef) => void
+  readonly onCut: (wire: number) => void
 }) {
-  const rect = slotOf(index)
+  const rect = slotRect(index)
   const { span, spacing, ys } = wireLayout({ rect, count: module.wires.length })
   const [hovered, setHovered] = useState<number | null>(null)
   const canCut = (wire: number) => !locked && !module.solved && !module.wires[wire]?.cut
@@ -73,11 +64,11 @@ export function OperatorWires({
           event.stopPropagation()
           if (event.delta > CLICK_SLOP_PX || !canCut(i)) return
           setHovered(null)
-          onCut({ module: index, wire: i })
+          onCut(i)
         }
         return (
           <group key={i}>
-            <WireNumber number={i + 1} x={-rect.width / 2 + 0.035} y={y} />
+            <SlotNumber number={i + 1} x={-rect.width / 2 + 0.035} y={y} />
             <Strand y={y} span={span} sag={sagOf(i)} cut={cut} highlighted={highlighted} solid>
               <Toon color={WIRE_COLORS[wire.color]} emissive={highlighted ? HOVER : "#000000"} emissiveIntensity={0.35} />
             </Strand>
@@ -104,7 +95,7 @@ export function OperatorWires({
 
 /** The Scanner sees each wire's core through its insulation, with the tag printed on it. */
 export function ScannerWires({ index, module }: { readonly index: number; readonly module: ScannerModule }) {
-  const rect = slotOf(index)
+  const rect = slotRect(index)
   const { span, ys } = wireLayout({ rect, count: module.wires.length })
   return (
     <group position={[rect.x, rect.y, 0]}>
@@ -224,16 +215,27 @@ function Strand({
   )
 }
 
-function WireNumber({ number, x, y }: { readonly number: number; readonly x: number; readonly y: number }) {
+/** A part's number printed on the case, so the crew can name it. */
+export function SlotNumber({
+  number,
+  x,
+  y,
+  color = "#e8e6e1",
+}: {
+  readonly number: number
+  readonly x: number
+  readonly y: number
+  readonly color?: string
+}) {
   const texture = useDrawnTexture({
     width: 64,
     height: 64,
-    key: String(number),
+    key: `${number}|${color}`,
     draw: (context, { width, height }) => {
       context.font = `800 46px ${MONO_FONT}`
       context.textAlign = "center"
       context.textBaseline = "middle"
-      context.fillStyle = "#e8e6e1"
+      context.fillStyle = color
       context.fillText(String(number), width / 2, height / 2 + 2)
     },
   })

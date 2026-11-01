@@ -43,3 +43,9 @@ export const MODULE_SLOTS = gridSlots({
   columns: 2,
   rows: 2,
 })
+
+export function slotRect(index: number) {
+  const rect = MODULE_SLOTS[index]
+  if (!rect) throw new Error(`The bomb has no slot ${index}`)
+  return rect
+}

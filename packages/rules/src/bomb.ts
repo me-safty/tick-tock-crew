@@ -1,4 +1,6 @@
 import { Schema } from "effect"
+import { DialModule, generateDial } from "./dial"
+import { generateKeypad, KeypadModule } from "./keypad"
 import { createRng, type Rng } from "./rng"
 import { generateWires, LETTERS, WiresModule } from "./wires"
 
@@ -9,11 +11,12 @@ export type Difficulty = typeof Difficulty.Type
 export const Edgework = Schema.Struct({ serial: Schema.String.check(Schema.isPattern(/^[A-Z]{2}\d[A-Z]{2}\d$/)) })
 export type Edgework = typeof Edgework.Type
 
-export const BombModule = Schema.Union([WiresModule])
+export const BombModule = Schema.Union([WiresModule, KeypadModule, DialModule])
 export type BombModule = typeof BombModule.Type
 export type ModuleKind = BombModule["kind"]
 
-export const Bomb = Schema.Struct({ edgework: Edgework, modules: Schema.NonEmptyArray(BombModule) })
+/** Module i sits in slot i on the case; the last slot stays free for the pressure valve. */
+export const Bomb = Schema.Struct({ edgework: Edgework, modules: Schema.Tuple([WiresModule, KeypadModule, DialModule]) })
 export type Bomb = typeof Bomb.Type
 
 function generateSerial(rng: Rng) {
@@ -26,5 +29,9 @@ function generateSerial(rng: Rng) {
 export function generateBomb(seed: number, difficulty: Difficulty): Bomb {
   const rng = createRng(seed)
   const serial = generateSerial(rng)
-  return { edgework: { serial }, modules: [generateWires(rng, { serial, difficulty })] }
+  // New modules draw after the earlier ones, so seeds stored before they existed keep their wires.
+  return {
+    edgework: { serial },
+    modules: [generateWires(rng, { serial, difficulty }), generateKeypad(rng, { difficulty }), generateDial(rng, { difficulty })],
+  }
 }

@@ -4,6 +4,8 @@ import { createContext, useContext } from "react"
 import { AdditiveBlending, Color, DataTexture, NearestFilter, RedFormat, ShaderMaterial } from "three"
 
 export const INK = "#141720"
+/** The glow on whatever the Operator's pointer would act on. */
+export const HOVER = "#ffc24a"
 
 export const TOON_STEPS = new DataTexture(new Uint8Array([96, 178, 255]), 3, 1, RedFormat)
 TOON_STEPS.minFilter = NearestFilter

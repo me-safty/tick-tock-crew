@@ -97,6 +97,47 @@ describe("generateBomb", () => {
               },
             ],
           },
+          {
+            "keys": [
+              {
+                "glyph": {
+                  "frame": "circle",
+                  "mark": "dot",
+                },
+                "live": false,
+              },
+              {
+                "glyph": {
+                  "frame": "square",
+                  "mark": "stem",
+                },
+                "live": true,
+              },
+              {
+                "glyph": {
+                  "frame": "arch",
+                  "mark": "stem",
+                },
+                "live": false,
+              },
+              {
+                "glyph": {
+                  "frame": "circle",
+                  "mark": "hook",
+                },
+                "live": false,
+              },
+            ],
+            "kind": "keypad",
+          },
+          {
+            "kind": "dial",
+            "waveform": {
+              "height": "half",
+              "peaks": 4,
+              "shape": "ramp",
+            },
+          },
         ],
       }
     `)

@@ -1,16 +1,16 @@
 import { api } from "@tick-tock-crew/backend/api"
-import { MAX_STRIKES } from "@tick-tock-crew/rules"
+import { DIAL_RANGE, MAX_STRIKES } from "@tick-tock-crew/rules"
 import { useMutation, useQuery } from "convex/react"
-import type { FunctionReturnType } from "convex/server"
-import { lazy, Suspense, useEffect, useState } from "react"
+import { lazy, type RefObject, Suspense, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { formatClock, secondsLeft, URGENT_SECONDS } from "./clock"
 import { useMutationError } from "./errors"
 import { sessionId } from "./guest"
-import { intlLocale, useLanguage } from "./i18n"
 import { LanguageSwitch } from "./i18n/LanguageSwitch"
-import type { Lobby, Match, RoleView, ViewOf, WireRef } from "./roles"
+import { ManualSheet } from "./ManualSheet"
+import type { Lobby, Match, OperatorAction, RoleView, ViewOf } from "./roles"
 import { navigate } from "./router"
+import type { DialControl } from "./scene/Dial"
 
 /** Starts downloading the 3D scene, so the lobby can fetch it before the match begins. */
 export const preloadScene = () => import("./scene/Scene")
@@ -32,7 +32,8 @@ function MatchInPlay({ code, match }: { readonly code: string; readonly match: M
   const [sawPlaying] = useState(match.status === "playing")
   const [finaleDone, setFinaleDone] = useState(false)
   const [manualOpen, setManualOpen] = useState(true)
-  const operator = useCutWire(code)
+  const operator = useOperator(code)
+  const dial = useDial()
   const ended = match.status !== "playing"
   useEffect(() => {
     if (!ended) return
@@ -41,17 +42,25 @@ function MatchInPlay({ code, match }: { readonly code: string; readonly match: M
   }, [ended])
   const finale = ended && sawPlaying && !finaleDone
   const role = match.view?.role ?? "spectator"
+  const dialModule = match.view?.role === "operator" ? match.view.modules.findIndex((module) => module.kind === "dial") : -1
+  const dialArmed = dialModule >= 0 && match.view?.modules[dialModule]?.solved === false && !ended
+  const sendFrequency = () => {
+    if (operator.pending || !dialArmed) return
+    void operator.act({ kind: "tune", module: dialModule, frequency: dial.control.frequency })
+  }
   return (
     <div className={`match ${role}`}>
       <Suspense fallback={<p className="scene-loading muted">{t("match.settingUp")}</p>}>
         <Scene
           match={match}
           finale={finale}
-          pendingCut={operator.pending}
-          onCut={(ref) => void operator.cut(ref)}
+          pending={operator.pending}
+          onAct={(action) => void operator.act(action)}
+          dial={dial.control}
           onOpenManual={() => setManualOpen(true)}
         />
       </Suspense>
+      {dialArmed && <DialInput dial={dial} onSend={sendFrequency} />}
       {role === "scanner" && <div className="xray-lens" data-label={t("match.xray")} aria-hidden />}
       <header className="hud">
         <div className="hud-role">
@@ -72,8 +81,8 @@ function MatchInPlay({ code, match }: { readonly code: string; readonly match: M
       {!ended && (
         <footer className="hud-hint">
           {operator.feedback && (
-            <p className={`feedback ${operator.feedback}`} role="status">
-              {t(`match.feedback.${operator.feedback}`)}
+            <p className={`feedback ${operator.feedback.outcome}`} role="status">
+              {t(`match.feedback.${operator.feedback.text}`)}
             </p>
           )}
           {operator.error && (
@@ -95,23 +104,87 @@ function MatchInPlay({ code, match }: { readonly code: string; readonly match: M
 
 const FEEDBACK_MS = 4000
 
-function useCutWire(code: string) {
+function useOperator(code: string) {
   const cutWire = useMutation(api.match.cutWire)
+  const pressKey = useMutation(api.match.pressKey)
+  const tuneDial = useMutation(api.match.tuneDial)
   const { error, run } = useMutationError()
-  const [feedback, setFeedback] = useState<FunctionReturnType<typeof api.match.cutWire> | null>(null)
-  const [pending, setPending] = useState<WireRef | null>(null)
+  const [pending, setPending] = useState<OperatorAction | null>(null)
+  const [feedback, setFeedback] = useState<Awaited<ReturnType<typeof send>> | null>(null)
   useEffect(() => {
     if (!feedback) return
     const id = setTimeout(() => setFeedback(null), FEEDBACK_MS)
     return () => clearTimeout(id)
   }, [feedback])
-  const cut = async (ref: WireRef) => {
-    setPending(ref)
+
+  async function send(action: OperatorAction) {
+    switch (action.kind) {
+      case "cut": {
+        const outcome = await cutWire({ code, sessionId, module: action.module, wire: action.wire })
+        return { outcome, text: `wires.${outcome}` } as const
+      }
+      case "press": {
+        const outcome = await pressKey({ code, sessionId, module: action.module, key: action.key })
+        return { outcome, text: `keypad.${outcome}` } as const
+      }
+      case "tune": {
+        const outcome = await tuneDial({ code, sessionId, module: action.module, frequency: action.frequency })
+        return { outcome, text: `dial.${outcome}` } as const
+      }
+      default: {
+        const _exhaustive: never = action
+        return _exhaustive
+      }
+    }
+  }
+
+  const act = async (action: OperatorAction) => {
+    setPending(action)
     setFeedback(null)
-    setFeedback(await run(cutWire({ code, sessionId, ...ref })))
+    setFeedback(await run(send(action)))
     setPending(null)
   }
-  return { pending, feedback, error, cut }
+  return { pending, feedback, error, act }
+}
+
+function useDial() {
+  const [frequency, setFrequency] = useState<number>(DIAL_RANGE.min)
+  const [focused, setFocused] = useState(false)
+  const input = useRef<HTMLInputElement>(null)
+  const control: DialControl = { frequency, focused, turn: setFrequency, focus: () => input.current?.focus({ preventScroll: true }) }
+  return { control, input, setFocused }
+}
+
+/** The dial as a native slider for the keyboard and screen readers; the 3D knob mirrors it. */
+function DialInput({
+  dial: { control, input, setFocused },
+  onSend,
+}: {
+  readonly dial: { control: DialControl; input: RefObject<HTMLInputElement | null>; setFocused: (focused: boolean) => void }
+  readonly onSend: () => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <input
+      ref={input}
+      className="sr-only"
+      type="range"
+      // The knob turns up to the right in both languages, so the arrow keys must too.
+      dir="ltr"
+      min={DIAL_RANGE.min}
+      max={DIAL_RANGE.max}
+      step={1}
+      value={control.frequency}
+      aria-label={t("match.dial.label")}
+      aria-keyshortcuts="Enter"
+      onChange={(event) => control.turn(event.currentTarget.valueAsNumber)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") onSend()
+      }}
+    />
+  )
 }
 
 function Hint({
@@ -184,81 +257,6 @@ function Strikes({ strikes }: { readonly strikes: number }) {
       ))}
     </span>
   )
-}
-
-type Manual = ViewOf<"analyst">["manual"]
-type ManualCell = Extract<Manual[number]["blocks"][number], { kind: "table" }>["rows"][number][number]
-
-function ManualSheet({ manual, onClose }: { readonly manual: Manual; readonly onClose: () => void }) {
-  const { t } = useTranslation()
-  useEffect(() => {
-    const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose()
-    }
-    window.addEventListener("keydown", close)
-    return () => window.removeEventListener("keydown", close)
-  }, [onClose])
-  return (
-    <aside className="manual-sheet" aria-label={t("match.manual.title")}>
-      <header className="manual-sheet-header">
-        <div>
-          <span className="eyebrow" lang="en">
-            Tick Tock Crew
-          </span>
-          <h2>{t("match.manual.title")}</h2>
-        </div>
-        <button type="button" className="button" onClick={onClose}>
-          {t("match.manual.close")}
-        </button>
-      </header>
-      {manual.map((section) => (
-        <section key={section.title} className="module manual">
-          <h3 className="module-title">{t(`manual.${section.title}`)}</h3>
-          {section.blocks.map((block, i) =>
-            block.kind === "text" ? (
-              <p key={i}>{t(`manual.${block.text}`)}</p>
-            ) : (
-              <table key={i}>
-                <thead>
-                  <tr>
-                    {block.columns.map((column) => (
-                      <th key={column}>{t(`manual.${column}`)}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {block.rows.map((row, r) => (
-                    <tr key={r}>
-                      {row.map((cell, j) => (
-                        <td key={j}>
-                          <CellText cell={cell} />
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ),
-          )}
-        </section>
-      ))}
-    </aside>
-  )
-}
-
-function CellText({ cell }: { readonly cell: ManualCell }) {
-  const { t } = useTranslation()
-  const language = useLanguage()
-  switch (cell.kind) {
-    case "digits":
-      return new Intl.ListFormat(intlLocale(language), { type: "disjunction" }).format(cell.digits.map(String))
-    case "color":
-      return t(`colors.${cell.color}`)
-    default: {
-      const _exhaustive: never = cell
-      return _exhaustive
-    }
-  }
 }
 
 function MatchOver({ match }: { readonly match: Match }) {

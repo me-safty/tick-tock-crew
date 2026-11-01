@@ -1,5 +1,18 @@
-export { Difficulty, generateBomb } from "./bomb"
+export { type Bomb, Difficulty, generateBomb } from "./bomb"
+export { DIAL_RANGE, solveDial, WAVE_SHAPES, type Waveform } from "./dial"
+export { FRAMES, type Glyph, MARKS, solveKeypad } from "./keypad"
 export { MANUAL_TEXT } from "./manual"
-export { cutWire, type CutWireError, initialState, matchStatus, MatchStatus, MAX_STRIKES } from "./match"
+export {
+  type ActionError,
+  cutWire,
+  initialState,
+  matchStatus,
+  MatchStatus,
+  type MatchState,
+  MAX_STRIKES,
+  type Outcome,
+  pressKey,
+  tuneDial,
+} from "./match"
 export { viewFor } from "./views"
 export { COLORS, solveWires } from "./wires"

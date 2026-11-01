@@ -24,7 +24,7 @@ Original 3-player co-op bomb-defusal web game, built for play with friends. Same
 | Pressure valve (real-time) | holds/releases valve | live pressure gauge | safe release band for this bomb |
 | Frequency dial | turns dial; submits | waveform overlay | waveform shape → frequency |
 
-Glyphs and rule tables are our own designs.
+Glyphs and rule tables are our own designs: each glyph is a frame (circle, triangle, square, arch) with a mark inside, drawn in code; the manual groups them into four rings. The dial's waveforms are smooth, square, ramp and spike traces.
 
 ## Stack
 
@@ -64,7 +64,7 @@ presence  @convex-dev/presence component
 3. **Rules core + wires** — PRNG, bomb gen, role views, strikes, timer, win/explode, with tests.
 4. **3D scene** — table + bomb from primitives and Kenney CC0 props, seat cameras, wire interaction, Analyst manual UI, Scanner X-ray.
 5. **Arabic localization** — Arabic default (RTL), English toggle, i18next, Western digits.
-6. **Other modules** — keypad, dial, valve (clock offset).
+6. **Other modules** — M6a: Glyph keypad and Frequency dial; M6b: Pressure valve (clock offset).
 7. **Voice + pings** — WebRTC mesh, Cloudflare TURN, pings and emotes.
 8. **Polish + deploy** — pause/reconnect, difficulty presets, deploy.
 
