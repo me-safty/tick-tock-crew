@@ -8,7 +8,7 @@ type Frame = { readonly path: string; readonly center: readonly [number, number]
 
 const FRAMES: Record<Glyph["frame"], Frame> = {
   circle: { path: "M 12 50 A 38 38 0 1 0 88 50 A 38 38 0 1 0 12 50", center: [50, 50], scale: 1 },
-  triangle: { path: "M 50 9 L 91 85 L 9 85 Z", center: [50, 61], scale: 0.72 },
+  triangle: { path: "M 50 9 L 91 85 L 9 85 Z", center: [50, 63], scale: 0.82 },
   square: { path: "M 14 14 H 86 V 86 H 14 Z", center: [50, 50], scale: 1 },
   arch: { path: "M 14 88 V 50 A 36 36 0 0 1 86 50 V 88", center: [50, 58], scale: 0.9 },
 }
