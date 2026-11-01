@@ -106,7 +106,7 @@ function Knob({ dial, active }: { readonly dial: DialControl; readonly active: b
     dial.turn(clampFrequency(dial.frequency + steps))
   }
 
-  const glow = active && (hovered || dial.focused)
+  const glow = active && hovered
   return (
     <group position={[KNOB.x, KNOB.y, 0]}>
       {Array.from({ length: TICKS }, (_, i) => {
@@ -121,7 +121,7 @@ function Knob({ dial, active }: { readonly dial: DialControl; readonly active: b
       })}
       {dial.focused && active && (
         <mesh position={[0, 0, 0.006]}>
-          <ringGeometry args={[KNOB.radius + 0.006, KNOB.radius + 0.012, 48]} />
+          <ringGeometry args={[KNOB.radius + 0.018, KNOB.radius + 0.026, 48]} />
           <meshBasicMaterial color={HOVER} toneMapped={false} />
         </mesh>
       )}
