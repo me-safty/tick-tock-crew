@@ -99,7 +99,7 @@
     },
     "hint": {
       "noSeat": "You don't hold a seat in this match.",
-      "operator": "Drag to look around · Click wires to cut and keys to press · Turn the dial by dragging it or with the arrow keys",
+      "operator": "Drag to look around · Click wires to cut and keys to press · Turn the dial by dragging it, or click it and use the arrow keys",
       "scanner": "Drag to look around · Read the wire tags, the live key and the waveform to your crew",
       "analyst": "Drag to look around",
       "openManual": "Open the manual"
