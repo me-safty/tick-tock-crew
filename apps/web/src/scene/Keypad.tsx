@@ -135,7 +135,7 @@ export function ScannerKeypad({ index, module }: { readonly index: number; reado
               <Paint />
             </RoundedBox>
           </KeyCap>
-          <Contact live={key.live} />
+          <Contact live={key.live} pulsing={key.live && !module.solved} />
           <PressedLamp pressed={key.pressed} />
           <SlotNumber number={i + 1} x={0} y={NUMBER_Y - KEY_Y} color="#7fb8a6" />
         </group>
@@ -144,7 +144,7 @@ export function ScannerKeypad({ index, module }: { readonly index: number; reado
   )
 }
 
-function Contact({ live }: { readonly live: boolean }) {
+function Contact({ live, pulsing }: { readonly live: boolean; readonly pulsing: boolean }) {
   const reducedMotion = usePrefersReducedMotion()
   const halo = useRef<Mesh>(null)
   useFrame(({ clock }) => {
@@ -158,7 +158,7 @@ function Contact({ live }: { readonly live: boolean }) {
         <cylinderGeometry args={[0.026, 0.026, 0.008, 20]} />
         <primitive object={live ? XRAY.core : XRAY.part} attach="material" />
       </mesh>
-      {live && (
+      {pulsing && (
         <mesh ref={halo} position={[0, 0, 0.03]} renderOrder={2}>
           <ringGeometry args={[0.046, 0.056, 32]} />
           <meshBasicMaterial color="#c8fff0" transparent opacity={0.9} depthTest={false} toneMapped={false} />
