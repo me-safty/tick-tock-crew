@@ -16,22 +16,23 @@ export function SeatCamera({ seat, shaking }: { readonly seat: Seat; readonly sh
   const shakeStartedAt = useRef<number | null>(null)
 
   useEffect(() => {
-    let last: { x: number; y: number } | null = null
+    let last: { id: number; x: number; y: number } | null = null
     const down = (event: PointerEvent) => {
-      last = { x: event.clientX, y: event.clientY }
+      if (last) return
+      last = { id: event.pointerId, x: event.clientX, y: event.clientY }
     }
     const move = (event: PointerEvent) => {
-      if (!last) return
+      if (last?.id !== event.pointerId) return
       goal.current = dragLook({
         look: goal.current,
         dx: event.clientX - last.x,
         dy: event.clientY - last.y,
         limits: seat.limits,
       })
-      last = { x: event.clientX, y: event.clientY }
+      last = { id: event.pointerId, x: event.clientX, y: event.clientY }
     }
-    const up = () => {
-      last = null
+    const up = (event: PointerEvent) => {
+      if (last?.id === event.pointerId) last = null
     }
     element.addEventListener("pointerdown", down)
     window.addEventListener("pointermove", move)
