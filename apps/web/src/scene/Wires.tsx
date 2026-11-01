@@ -6,6 +6,7 @@ import { CatmullRomCurve3, type Group, MathUtils, TubeGeometry, Vector3 } from "
 import type { ViewOf, WireRef } from "../roles"
 import { MONO_FONT, useDrawnTexture } from "./labels"
 import { MODULE_SLOTS, type Rect } from "./layout"
+import { CLICK_SLOP_PX } from "./look"
 import { Ink, Paint, Toon, XRAY } from "./materials"
 
 type OperatorModule = ViewOf<"operator">["modules"][number]
@@ -25,7 +26,6 @@ const WIRE_RADIUS = 0.011
 const TERMINAL_INSET = 0.075
 const MARGIN = 0.035
 /** A press that moves farther than this is a look-around drag, not a click. */
-const CLICK_SLOP_PX = 6
 
 function wireLayout({ rect, count }: { rect: Rect; count: number }) {
   const span = rect.width - 2 * TERMINAL_INSET

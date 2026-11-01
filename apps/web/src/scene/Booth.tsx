@@ -1,6 +1,7 @@
 import { RoundedBox, useCursor } from "@react-three/drei"
 import { Suspense, useState } from "react"
 import { SANS_FONT, useDrawnTexture } from "./labels"
+import { CLICK_SLOP_PX } from "./look"
 import { Ink, Toon } from "./materials"
 import { Prop } from "./Props"
 
@@ -96,6 +97,7 @@ function ManualBinder({ onOpen }: { readonly onOpen: () => void }) {
       onPointerOut={() => setHovered(false)}
       onClick={(event) => {
         event.stopPropagation()
+        if (event.delta > CLICK_SLOP_PX) return
         onOpen()
       }}
     >

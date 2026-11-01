@@ -1,3 +1,6 @@
+/** A press that moves farther than this is a look-around drag, not a click. */
+export const CLICK_SLOP_PX = 6
+
 export type Vec3 = readonly [number, number, number]
 
 /** Camera angles in radians, applied in YXZ order: positive yaw turns left, positive pitch looks up. */
