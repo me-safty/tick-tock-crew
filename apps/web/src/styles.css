@@ -373,9 +373,10 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
 }
 
 /* Arabic letters join, so letter-spacing and caps styling would break words apart. */
-.eyebrow:lang(ar), .divider:lang(ar), .tag:lang(ar), .manual th:lang(ar), .xray-lens:lang(ar)::after, .code-input:lang(ar)::placeholder {
+h1:lang(ar), .eyebrow:lang(ar), .divider:lang(ar), .tag:lang(ar), .manual th:lang(ar), .xray-lens:lang(ar)::after, .code-input:lang(ar)::placeholder {
   letter-spacing: 0;
   text-transform: none;
 }
-.eyebrow:lang(ar) { font-size: 0.8rem; }
+.eyebrow:lang(ar) { font-size: 0.85rem; }
+.tag:lang(ar) { font-size: 0.75rem; }
 .player.empty:lang(ar) { font-style: normal; }
