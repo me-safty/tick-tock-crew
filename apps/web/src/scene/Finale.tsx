@@ -5,6 +5,7 @@ import type { Vec3 } from "./look"
 import { CASE, TABLE_TOP_Y } from "./layout"
 import { useDrawnTexture } from "./labels"
 import { TOON_STEPS } from "./materials"
+import { usePrefersReducedMotion } from "./motion"
 
 type Outcome = "won" | "lost"
 
@@ -13,14 +14,18 @@ type Outcome = "won" | "lost"
  * `origin` is the bomb's position, or null for a seat with no bomb in view.
  */
 export function Finale({ outcome, origin }: { readonly outcome: Outcome; readonly origin: Vec3 | null }) {
+  const flash = !usePrefersReducedMotion()
   switch (outcome) {
     case "lost":
-      return origin ? <Explosion origin={origin} /> : <FlashLight position={[0, 1.6, 0.4]} color="#ff5a3c" peak={12} />
+      if (origin) return <Explosion origin={origin} flash={flash} />
+      return flash && <FlashLight position={[0, 1.6, 0.4]} color="#ff5a3c" peak={12} />
     case "won":
       return (
         <>
           <Confetti center={origin ?? [0, 0.8, -0.8]} />
-          <FlashLight position={origin ? [origin[0], origin[1] + 0.6, origin[2] + 0.8] : [0, 1.6, 0.4]} color="#5cf0a0" peak={6} />
+          {flash && (
+            <FlashLight position={origin ? [origin[0], origin[1] + 0.6, origin[2] + 0.8] : [0, 1.6, 0.4]} color="#5cf0a0" peak={6} />
+          )}
         </>
       )
     default: {
@@ -48,7 +53,7 @@ type Particle = {
 
 const pick = <T,>(items: readonly [T, ...T[]]) => items[Math.floor(Math.random() * items.length)] ?? items[0]
 
-function Explosion({ origin }: { readonly origin: Vec3 }) {
+function Explosion({ origin, flash }: { readonly origin: Vec3; readonly flash: boolean }) {
   const particles = useMemo(
     () =>
       Array.from({ length: 90 }, (_, i): Particle => {
@@ -72,7 +77,7 @@ function Explosion({ origin }: { readonly origin: Vec3 }) {
       <Particles particles={particles}>
         <icosahedronGeometry args={[1, 0]} />
       </Particles>
-      <FlashLight position={[origin[0], origin[1] + 0.3, origin[2] + 0.6]} color="#ff9a3c" peak={40} />
+      {flash && <FlashLight position={[origin[0], origin[1] + 0.3, origin[2] + 0.6]} color="#ff9a3c" peak={40} />}
       <Scorch origin={origin} />
     </>
   )
