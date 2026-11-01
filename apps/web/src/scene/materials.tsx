@@ -22,7 +22,7 @@ export const useXray = () => useContext(XrayContext)
 
 /** An inked outline in the normal look; the X-ray lens has none. */
 export function Ink({ thickness = 0.012, color = INK }: { readonly thickness?: number; readonly color?: string }) {
-  return useXray() ? null : <Outlines thickness={thickness} color={color} />
+  return useXray() ? null : <Outlines screenspace thickness={thickness} color={color} />
 }
 
 function xrayMaterial({ color, base, rim }: { color: string; base: number; rim: number }) {
