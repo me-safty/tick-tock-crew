@@ -145,9 +145,10 @@ function useOperator(code: string) {
         const outcome = await tuneDial({ code, sessionId, module: action.module, frequency: action.frequency })
         return { outcome, text: `dial.${outcome}` } as const
       }
-      case "hold":
-        await holdValve({ code, sessionId, module: action.module })
-        return null
+      case "hold": {
+        const outcome = await holdValve({ code, sessionId, module: action.module })
+        return outcome === "burst" ? ({ outcome: "strike", text: "valve.burst" } as const) : null
+      }
       case "release": {
         const outcome = await releaseValve({ code, sessionId, module: action.module })
         return { outcome, text: `valve.${outcome}` } as const

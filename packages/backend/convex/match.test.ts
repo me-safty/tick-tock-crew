@@ -227,6 +227,17 @@ describe("pressure valve", () => {
     expect(await pendingBursts(t)).toEqual([])
   })
 
+  test("a hold that arrives after the needle topped out reports the burst", async () => {
+    vi.useFakeTimers()
+    const { t, code } = await burstingMatch()
+    const { firstBurst } = await bombOf(t)
+
+    vi.setSystemTime(firstBurst + 1)
+    expect(await hold(t, code)).toBe("burst")
+    expect(await getRoom(t)).toMatchObject({ strikes: 1 })
+    expect(await hold(t, code)).toBe("held")
+  })
+
   test("loses the match when a burst is the third strike", async () => {
     vi.useFakeTimers()
     const { t, code } = await burstingMatch()

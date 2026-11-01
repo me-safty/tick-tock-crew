@@ -95,7 +95,8 @@
       },
       "valve": {
         "solved": "Sealed inside the band. Valve defused.",
-        "strike": "Sealed outside the band. Strike!"
+        "strike": "Sealed outside the band. Strike!",
+        "burst": "The valve burst before you grabbed it. Strike!"
       }
     },
     "dial": {

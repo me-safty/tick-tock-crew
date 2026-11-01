@@ -247,11 +247,8 @@ export const tuneDial = mutation({
 /** Starts venting the valve. Both this and releaseValve are stamped with the server's time on arrival. */
 export const holdValve = mutation({
   args: target,
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    await operatorAction(ctx, args, (bomb, state, now) => holdValveRule(bomb, state, { module: args.module, at: now }))
-    return null
-  },
+  returns: v.union(v.literal("held"), v.literal("burst")),
+  handler: (ctx, args) => operatorAction(ctx, args, (bomb, state, now) => holdValveRule(bomb, state, { module: args.module, at: now })),
 })
 
 /** Seals the valve: solved if the needle is in the safe band right now, a strike otherwise. */
