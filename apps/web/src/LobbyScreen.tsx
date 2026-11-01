@@ -1,12 +1,17 @@
 import { api } from "@tick-tock-crew/backend/api"
 import { useMutation } from "convex/react"
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useMutationError } from "./errors"
 import { sessionId, useNickname } from "./guest"
+import { intlLocale, useLanguage } from "./i18n"
+import { LanguageSwitch } from "./i18n/LanguageSwitch"
 import { preloadScene } from "./MatchScreen"
-import { ROLE_INFO, type Lobby, type Seat } from "./roles"
+import type { Lobby, Seat } from "./roles"
 
 export function LobbyScreen({ lobby }: { readonly lobby: Lobby }) {
+  const { t } = useTranslation()
+  const language = useLanguage()
   const [nickname, setNickname] = useNickname()
   const { error, run } = useMutationError()
   const claimSeat = useMutation(api.rooms.claimSeat)
@@ -21,30 +26,31 @@ export function LobbyScreen({ lobby }: { readonly lobby: Lobby }) {
   const seated = lobby.seats.some((seat) => seat.player?.isYou)
   const waitingFor = lobby.seats
     .filter((seat) => !(seat.player?.ready && seat.player.online))
-    .map((seat) => seat.player?.name ?? `an open ${ROLE_INFO[seat.role].title} seat`)
+    .map((seat) => seat.player?.name ?? t("lobby.openSeatOf", { role: t(`roles.${seat.role}.title`) }))
   const allReady = waitingFor.length === 0
 
   return (
     <main className="screen lobby">
       <header className="lobby-header">
         <div>
-          <span className="eyebrow">Room code</span>
+          <span className="eyebrow">{t("lobby.roomCode")}</span>
           <span className="led big">{lobby.code}</span>
         </div>
         <ShareLink />
         <span className="online-count">
-          <span className="dot on" /> {lobby.onlineCount} online
+          <span className="dot on" /> {t("lobby.online", { count: lobby.onlineCount })}
         </span>
+        <LanguageSwitch />
       </header>
 
       {!seated && (
         <label className="field nickname">
-          <span>Your nickname</span>
+          <span>{t("lobby.yourNickname")}</span>
           <input
             value={nickname}
             onChange={(event) => setNickname(event.target.value)}
             maxLength={20}
-            placeholder="Pick one, then claim a seat"
+            placeholder={t("lobby.nicknamePlaceholder")}
           />
         </label>
       )}
@@ -71,15 +77,17 @@ export function LobbyScreen({ lobby }: { readonly lobby: Lobby }) {
             disabled={!allReady}
             onClick={() => void run(startMatch(room))}
           >
-            Start match
+            {t("lobby.startMatch")}
           </button>
         )}
         <p className="muted">
           {allReady
             ? lobby.isHost
-              ? "Everyone is ready."
-              : "Everyone is ready. Waiting for the host to start."
-            : `Waiting for ${waitingFor.join(", ")}.`}
+              ? t("lobby.everyoneReady")
+              : t("lobby.waitingForHost")
+            : t("lobby.waitingFor", {
+                names: new Intl.ListFormat(intlLocale(language), { type: "conjunction" }).format(waitingFor),
+              })}
         </p>
         {error && (
           <p className="error" role="alert">
@@ -101,22 +109,22 @@ type SeatCardProps = {
 }
 
 function SeatCard({ seat, seated, canClaim, onClaim, onLeave, onReady }: SeatCardProps) {
-  const { title, blurb } = ROLE_INFO[seat.role]
+  const { t } = useTranslation()
   const { player } = seat
   return (
     <li className={`seat ${seat.role}${player?.isYou ? " mine" : ""}${player && !player.online ? " offline" : ""}`}>
-      <span className="eyebrow">{title}</span>
-      <p className="blurb">{blurb}</p>
+      <span className="eyebrow">{t(`roles.${seat.role}.title`)}</span>
+      <p className="blurb">{t(`roles.${seat.role}.blurb`)}</p>
       {player ? (
         <>
           <p className="player">
-            <span className={`dot ${player.online ? "on" : "off"}`} title={player.online ? "Online" : "Offline"} />
-            {player.name}
-            {player.isYou && <span className="tag">you</span>}
-            {player.isHost && <span className="tag">host</span>}
+            <span className={`dot ${player.online ? "on" : "off"}`} title={t(player.online ? "lobby.seat.online" : "lobby.seat.offline")} />
+            <bdi>{player.name}</bdi>
+            {player.isYou && <span className="tag">{t("lobby.seat.you")}</span>}
+            {player.isHost && <span className="tag">{t("lobby.seat.host")}</span>}
           </p>
           <p className={`status ${player.ready ? "ready" : ""}`}>
-            {player.online ? (player.ready ? "Ready" : "Not ready") : "Offline"}
+            {t(player.online ? (player.ready ? "lobby.seat.ready" : "lobby.seat.notReady") : "lobby.seat.offline")}
           </p>
           <div className="actions">
             {player.isYou ? (
@@ -127,16 +135,16 @@ function SeatCard({ seat, seated, canClaim, onClaim, onLeave, onReady }: SeatCar
                   aria-pressed={player.ready}
                   onClick={() => onReady(!player.ready)}
                 >
-                  {player.ready ? "Cancel ready" : "Ready"}
+                  {t(player.ready ? "lobby.seat.cancelReady" : "lobby.seat.setReady")}
                 </button>
                 <button type="button" className="button" onClick={onLeave}>
-                  Leave seat
+                  {t("lobby.seat.leave")}
                 </button>
               </>
             ) : (
               !player.online && (
                 <button type="button" className="button" disabled={!canClaim} onClick={onClaim}>
-                  Take over seat
+                  {t("lobby.seat.takeOver")}
                 </button>
               )
             )}
@@ -144,10 +152,10 @@ function SeatCard({ seat, seated, canClaim, onClaim, onLeave, onReady }: SeatCar
         </>
       ) : (
         <>
-          <p className="player empty">Open seat</p>
+          <p className="player empty">{t("lobby.seat.open")}</p>
           <div className="actions">
             <button type="button" className="button" disabled={!canClaim} onClick={onClaim}>
-              {seated ? "Switch here" : "Claim seat"}
+              {t(seated ? "lobby.seat.switchHere" : "lobby.seat.claim")}
             </button>
           </div>
         </>
@@ -156,10 +164,9 @@ function SeatCard({ seat, seated, canClaim, onClaim, onLeave, onReady }: SeatCar
   )
 }
 
-const SHARE_LABELS = { idle: "Copy invite link", copied: "Link copied", failed: "Copy failed, share the code" }
-
 function ShareLink() {
-  const [status, setStatus] = useState<keyof typeof SHARE_LABELS>("idle")
+  const { t } = useTranslation()
+  const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle")
   const show = (next: typeof status) => {
     setStatus(next)
     setTimeout(() => setStatus("idle"), 2000)
@@ -171,7 +178,7 @@ function ShareLink() {
     )
   return (
     <button type="button" className="button share" onClick={copy} aria-live="polite">
-      {SHARE_LABELS[status]}
+      {t(`lobby.share.${status}`)}
     </button>
   )
 }

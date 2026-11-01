@@ -81,7 +81,7 @@
     "defused": "الوحدات المعطّلة: {{defused}} من {{total}}",
     "timeLeft": "الوقت المتبقي {{clock}}",
     "strikes": "الأخطاء",
-    "strikesLabel": "الأخطاء: {{count}} من {{max}}",
+    "strikesLabel": "الأخطاء: {{strikes}} من {{max}}",
     "xray": "أشعة سينية",
     "feedback": {
       "solved": "قطع نظيف. تم تعطيل الوحدة.",
@@ -108,7 +108,7 @@
       "wonReason": "تم تعطيل كل الوحدات. أحسنتم يا طاقم.",
       "strikesReason": "ثلاثة أخطاء. انفجرت القنبلة.",
       "timeReason": "انتهى الوقت. انفجرت القنبلة.",
-      "strikesSummary": "الأخطاء: {{count}} من {{max}}"
+      "strikesSummary": "الأخطاء: {{strikes}} من {{max}}"
     }
   },
   "scene": {

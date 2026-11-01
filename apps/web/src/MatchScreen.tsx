@@ -1,11 +1,15 @@
 import { api } from "@tick-tock-crew/backend/api"
 import { MAX_STRIKES } from "@tick-tock-crew/rules"
 import { useMutation, useQuery } from "convex/react"
+import type { FunctionReturnType } from "convex/server"
 import { lazy, Suspense, useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { formatClock, secondsLeft, URGENT_SECONDS } from "./clock"
 import { useMutationError } from "./errors"
 import { sessionId } from "./guest"
-import { type Lobby, type Match, ROLE_INFO, type RoleView, type ViewOf, type WireRef } from "./roles"
+import { intlLocale, useLanguage } from "./i18n"
+import { LanguageSwitch } from "./i18n/LanguageSwitch"
+import type { Lobby, Match, RoleView, ViewOf, WireRef } from "./roles"
 import { navigate } from "./router"
 
 /** Starts downloading the 3D scene, so the lobby can fetch it before the match begins. */
@@ -23,6 +27,7 @@ export function MatchScreen({ lobby }: { readonly lobby: Lobby }) {
 }
 
 function MatchInPlay({ code, match }: { readonly code: string; readonly match: Match }) {
+  const { t } = useTranslation()
   // A room that was already over when it opened skips straight to the end screen.
   const [sawPlaying] = useState(match.status === "playing")
   const [finaleDone, setFinaleDone] = useState(false)
@@ -38,7 +43,7 @@ function MatchInPlay({ code, match }: { readonly code: string; readonly match: M
   const role = match.view?.role ?? "spectator"
   return (
     <div className={`match ${role}`}>
-      <Suspense fallback={<p className="scene-loading muted">Setting up the room…</p>}>
+      <Suspense fallback={<p className="scene-loading muted">{t("match.settingUp")}</p>}>
         <Scene
           match={match}
           finale={finale}
@@ -47,25 +52,28 @@ function MatchInPlay({ code, match }: { readonly code: string; readonly match: M
           onOpenManual={() => setManualOpen(true)}
         />
       </Suspense>
-      {role === "scanner" && <div className="xray-lens" aria-hidden />}
+      {role === "scanner" && <div className="xray-lens" data-label={t("match.xray")} aria-hidden />}
       <header className="hud">
         <div className="hud-role">
-          <span className="eyebrow">Room {code}</span>
-          <h1>{match.view ? ROLE_INFO[match.view.role].title : "Spectator"}</h1>
+          <span className="eyebrow">{t("match.room", { code })}</span>
+          <h1>{t(match.view ? `roles.${match.view.role}.title` : "roles.spectator")}</h1>
           {match.view?.role === "analyst" && <Defused view={match.view} />}
         </div>
-        {!ended && (
-          <div className="hud-clock">
-            <Countdown endsAt={match.endsAt} />
-            <Strikes strikes={match.strikes} />
-          </div>
-        )}
+        <div className="hud-end">
+          {!ended && (
+            <div className="hud-clock">
+              <Countdown endsAt={match.endsAt} />
+              <Strikes strikes={match.strikes} />
+            </div>
+          )}
+          <LanguageSwitch />
+        </div>
       </header>
       {!ended && (
         <footer className="hud-hint">
           {operator.feedback && (
             <p className={`feedback ${operator.feedback}`} role="status">
-              {CUT_FEEDBACK[operator.feedback]}
+              {t(`match.feedback.${operator.feedback}`)}
             </p>
           )}
           {operator.error && (
@@ -86,12 +94,11 @@ function MatchInPlay({ code, match }: { readonly code: string; readonly match: M
 }
 
 const FEEDBACK_MS = 4000
-const CUT_FEEDBACK = { solved: "Clean cut. Module defused.", strike: "Wrong wire. Strike!" } as const
 
 function useCutWire(code: string) {
   const cutWire = useMutation(api.match.cutWire)
   const { error, run } = useMutationError()
-  const [feedback, setFeedback] = useState<keyof typeof CUT_FEEDBACK | null>(null)
+  const [feedback, setFeedback] = useState<FunctionReturnType<typeof api.match.cutWire> | null>(null)
   const [pending, setPending] = useState<WireRef | null>(null)
   useEffect(() => {
     if (!feedback) return
@@ -116,18 +123,19 @@ function Hint({
   readonly manualOpen: boolean
   readonly onOpenManual: () => void
 }) {
-  if (!view) return <p className="hint">You don't hold a seat in this match.</p>
+  const { t } = useTranslation()
+  if (!view) return <p className="hint">{t("match.hint.noSeat")}</p>
   switch (view.role) {
     case "operator":
-      return <p className="hint">Drag to look around · Click a wire to cut it</p>
+      return <p className="hint">{t("match.hint.operator")}</p>
     case "scanner":
-      return <p className="hint">Drag to look around · Read each wire's tag to your crew</p>
+      return <p className="hint">{t("match.hint.scanner")}</p>
     case "analyst":
       return manualOpen ? (
-        <p className="hint">Drag to look around</p>
+        <p className="hint">{t("match.hint.analyst")}</p>
       ) : (
         <button type="button" className="button primary" onClick={onOpenManual}>
-          Open the manual
+          {t("match.hint.openManual")}
         </button>
       )
     default: {
@@ -138,12 +146,9 @@ function Hint({
 }
 
 function Defused({ view }: { readonly view: ViewOf<"analyst"> }) {
+  const { t } = useTranslation()
   const defused = view.modules.filter((module) => module.solved).length
-  return (
-    <p className="muted">
-      Modules defused: {defused} of {view.modules.length}
-    </p>
-  )
+  return <p className="muted">{t("match.defused", { defused, total: view.modules.length })}</p>
 }
 
 function useNow(intervalMs: number) {
@@ -156,20 +161,22 @@ function useNow(intervalMs: number) {
 }
 
 function Countdown({ endsAt }: { readonly endsAt: number }) {
+  const { t } = useTranslation()
   const seconds = secondsLeft(endsAt, useNow(250))
   const clock = formatClock(seconds)
   return (
-    <span className={`led big${seconds <= URGENT_SECONDS ? " urgent" : ""}`} role="timer" aria-label={`${clock} left`}>
+    <span className={`led big${seconds <= URGENT_SECONDS ? " urgent" : ""}`} role="timer" aria-label={t("match.timeLeft", { clock })}>
       {clock}
     </span>
   )
 }
 
 function Strikes({ strikes }: { readonly strikes: number }) {
+  const { t } = useTranslation()
   return (
     // The key replays the newest strike's animation for every role when the count changes.
-    <span key={strikes} className="strikes" role="img" aria-label={`${strikes} of ${MAX_STRIKES} strikes`}>
-      <span className="eyebrow">Strikes</span>
+    <span key={strikes} className="strikes" role="img" aria-label={t("match.strikesLabel", { strikes, max: MAX_STRIKES })}>
+      <span className="eyebrow">{t("match.strikes")}</span>
       {Array.from({ length: MAX_STRIKES }, (_, i) => (
         <span key={i} className={`strike${i < strikes ? " on" : ""}${i === strikes - 1 ? " latest" : ""}`}>
           ✕
@@ -179,7 +186,11 @@ function Strikes({ strikes }: { readonly strikes: number }) {
   )
 }
 
-function ManualSheet({ manual, onClose }: { readonly manual: ViewOf<"analyst">["manual"]; readonly onClose: () => void }) {
+type Manual = ViewOf<"analyst">["manual"]
+type ManualCell = Extract<Manual[number]["blocks"][number], { kind: "table" }>["rows"][number][number]
+
+function ManualSheet({ manual, onClose }: { readonly manual: Manual; readonly onClose: () => void }) {
+  const { t } = useTranslation()
   useEffect(() => {
     const close = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose()
@@ -188,36 +199,40 @@ function ManualSheet({ manual, onClose }: { readonly manual: ViewOf<"analyst">["
     return () => window.removeEventListener("keydown", close)
   }, [onClose])
   return (
-    <aside className="manual-sheet" aria-label="Field manual">
+    <aside className="manual-sheet" aria-label={t("match.manual.title")}>
       <header className="manual-sheet-header">
         <div>
-          <span className="eyebrow">Tick Tock Crew</span>
-          <h2>Field manual</h2>
+          <span className="eyebrow" lang="en">
+            Tick Tock Crew
+          </span>
+          <h2>{t("match.manual.title")}</h2>
         </div>
         <button type="button" className="button" onClick={onClose}>
-          Close
+          {t("match.manual.close")}
         </button>
       </header>
       {manual.map((section) => (
         <section key={section.title} className="module manual">
-          <h3 className="module-title">{section.title}</h3>
+          <h3 className="module-title">{t(`manual.${section.title}`)}</h3>
           {section.blocks.map((block, i) =>
             block.kind === "text" ? (
-              <p key={i}>{block.text}</p>
+              <p key={i}>{t(`manual.${block.text}`)}</p>
             ) : (
               <table key={i}>
                 <thead>
                   <tr>
                     {block.columns.map((column) => (
-                      <th key={column}>{column}</th>
+                      <th key={column}>{t(`manual.${column}`)}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {block.rows.map((row) => (
-                    <tr key={row.join()}>
+                  {block.rows.map((row, r) => (
+                    <tr key={r}>
                       {row.map((cell, j) => (
-                        <td key={j}>{cell}</td>
+                        <td key={j}>
+                          <CellText cell={cell} />
+                        </td>
                       ))}
                     </tr>
                   ))}
@@ -231,27 +246,35 @@ function ManualSheet({ manual, onClose }: { readonly manual: ViewOf<"analyst">["
   )
 }
 
+function CellText({ cell }: { readonly cell: ManualCell }) {
+  const { t } = useTranslation()
+  const language = useLanguage()
+  switch (cell.kind) {
+    case "digits":
+      return new Intl.ListFormat(intlLocale(language), { type: "disjunction" }).format(cell.digits.map(String))
+    case "color":
+      return t(`colors.${cell.color}`)
+    default: {
+      const _exhaustive: never = cell
+      return _exhaustive
+    }
+  }
+}
+
 function MatchOver({ match }: { readonly match: Match }) {
+  const { t } = useTranslation()
   const won = match.status === "won"
-  const who = match.view ? "You" : "The crew"
-  const reason = won
-    ? "Every module is defused. Nice work, crew."
-    : match.strikes >= MAX_STRIKES
-      ? "Three strikes. The bomb went off."
-      : "The timer ran out. The bomb went off."
+  const title = match.view ? (won ? "youWon" : "youLost") : won ? "crewWon" : "crewLost"
+  const reason = won ? "wonReason" : match.strikes >= MAX_STRIKES ? "strikesReason" : "timeReason"
   return (
     <main className="screen match-over-screen">
       <section className={`panel match-over ${won ? "won" : "lost"}`}>
-        <span className="eyebrow">{won ? "Bomb defused" : "Boom"}</span>
-        <h1>
-          {who} {won ? "won" : "lost"}
-        </h1>
-        <p>{reason}</p>
-        <p className="muted">
-          Strikes: {match.strikes} of {MAX_STRIKES}
-        </p>
+        <span className="eyebrow">{t(won ? "match.over.wonEyebrow" : "match.over.lostEyebrow")}</span>
+        <h1>{t(`match.over.${title}`)}</h1>
+        <p>{t(`match.over.${reason}`)}</p>
+        <p className="muted">{t("match.over.strikesSummary", { strikes: match.strikes, max: MAX_STRIKES })}</p>
         <button type="button" className="button primary" onClick={() => navigate("/")}>
-          Back to home
+          {t("common.backHome")}
         </button>
       </section>
     </main>

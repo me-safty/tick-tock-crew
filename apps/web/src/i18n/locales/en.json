@@ -77,7 +77,7 @@
     "defused": "Modules defused: {{defused}} of {{total}}",
     "timeLeft": "{{clock}} left",
     "strikes": "Strikes",
-    "strikesLabel": "{{count}} of {{max}} strikes",
+    "strikesLabel": "{{strikes}} of {{max}} strikes",
     "xray": "X-RAY",
     "feedback": {
       "solved": "Clean cut. Module defused.",
@@ -104,7 +104,7 @@
       "wonReason": "Every module is defused. Nice work, crew.",
       "strikesReason": "Three strikes. The bomb went off.",
       "timeReason": "The timer ran out. The bomb went off.",
-      "strikesSummary": "Strikes: {{count}} of {{max}}"
+      "strikesSummary": "Strikes: {{strikes}} of {{max}}"
     }
   },
   "scene": {
