@@ -3,6 +3,7 @@ import {
   type CutWireError,
   cutWire as cutWireRule,
   generateBomb,
+  MANUAL_TEXT,
   type MatchStatus,
   matchStatus,
   viewFor,
@@ -52,9 +53,15 @@ export const explode = internalMutation({
 
 const moduleFields = { kind: v.literal("wires"), solved: v.boolean() }
 const cut = v.boolean()
+const color = v.union(...COLORS.map((c) => v.literal(c)))
+const manualText = v.union(...MANUAL_TEXT.map((key) => v.literal(key)))
+const manualCell = v.union(
+  v.object({ kind: v.literal("digits"), digits: v.array(v.number()) }),
+  v.object({ kind: v.literal("color"), color }),
+)
 const manualBlock = v.union(
-  v.object({ kind: v.literal("text"), text: v.string() }),
-  v.object({ kind: v.literal("table"), columns: v.array(v.string()), rows: v.array(v.array(v.string())) }),
+  v.object({ kind: v.literal("text"), text: manualText }),
+  v.object({ kind: v.literal("table"), columns: v.array(manualText), rows: v.array(v.array(manualCell)) }),
 )
 // Mirrors RoleView from the rules package; Convex rejects any field not listed here, so a leak fails loudly.
 const roleView = v.union(
@@ -62,7 +69,7 @@ const roleView = v.union(
     role: v.literal("operator"),
     serial: v.string(),
     modules: v.array(
-      v.object({ ...moduleFields, wires: v.array(v.object({ color: v.union(...COLORS.map((c) => v.literal(c))), cut })) }),
+      v.object({ ...moduleFields, wires: v.array(v.object({ color, cut })) }),
     ),
   }),
   v.object({
@@ -74,7 +81,7 @@ const roleView = v.union(
   v.object({
     role: v.literal("analyst"),
     modules: v.array(v.object(moduleFields)),
-    manual: v.array(v.object({ title: v.string(), blocks: v.array(manualBlock) })),
+    manual: v.array(v.object({ title: manualText, blocks: v.array(manualBlock) })),
   }),
 )
 
