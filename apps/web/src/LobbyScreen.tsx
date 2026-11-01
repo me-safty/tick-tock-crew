@@ -1,8 +1,9 @@
 import { api } from "@tick-tock-crew/backend/api"
 import { useMutation } from "convex/react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useMutationError } from "./errors"
 import { sessionId, useNickname } from "./guest"
+import { preloadScene } from "./MatchScreen"
 import { ROLE_INFO, type Lobby, type Seat } from "./roles"
 
 export function LobbyScreen({ lobby }: { readonly lobby: Lobby }) {
@@ -12,6 +13,9 @@ export function LobbyScreen({ lobby }: { readonly lobby: Lobby }) {
   const leaveSeat = useMutation(api.rooms.leaveSeat)
   const setReady = useMutation(api.rooms.setReady)
   const startMatch = useMutation(api.rooms.startMatch)
+  useEffect(() => {
+    void preloadScene()
+  }, [])
 
   const room = { code: lobby.code, sessionId }
   const seated = lobby.seats.some((seat) => seat.player?.isYou)
