@@ -105,7 +105,7 @@ describe("pressure valve rules", () => {
       const { low, high } = solveValve(valve)
       expect(high - low).toBe(12)
       expect(low).toBeGreaterThan(0)
-      expect(high).toBeLessThan(valve.gauge.start)
+      expect(high + (valve.gauge.vent * RELEASE_GRACE_MS) / 1000).toBeLessThan(valve.gauge.start)
       expect(sealsAt(valve, heldUntil(valve.gauge, (low + high) / 2))).toBe(true)
       expect(((high - low) / valve.gauge.vent) * 1000 + 2 * RELEASE_GRACE_MS).toBeGreaterThanOrEqual(1800)
     }

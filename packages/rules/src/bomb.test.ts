@@ -141,8 +141,8 @@ describe("generateBomb", () => {
           {
             "coils": 2,
             "gauge": {
-              "rise": 0.13,
-              "start": 64,
+              "rise": 0.12,
+              "start": 66,
               "vent": 5,
             },
             "handle": "red",

@@ -114,11 +114,12 @@ export function burstAt(gauge: Gauge, progress: ValveProgress): number | null {
 
 const RATES = {
   easy: { rise: 0.1, vent: [4, 5] },
-  normal: { rise: 0.13, vent: [5, 7] },
-  hard: { rise: 0.16, vent: [7, 9] },
+  normal: { rise: 0.12, vent: [5, 7] },
+  hard: { rise: 0.13, vent: [7, 9] },
 } as const
 
-const START = { min: 55, max: 85 } as const
+/** The lowest start clears the top band's grace on the fastest valve (53 + 9 / 4), so no tap seals on the spot. */
+const START = { min: 57, max: 88 } as const
 
 export function generateValve(rng: Rng, { difficulty }: { readonly difficulty: keyof typeof RATES }): ValveModule {
   const { rise, vent } = RATES[difficulty]
