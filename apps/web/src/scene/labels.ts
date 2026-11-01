@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useSyncExternalStore } from "react"
 import { useTranslation } from "react-i18next"
 import { CanvasTexture, SRGBColorSpace } from "three"
 import { useLanguage } from "../i18n"
@@ -39,9 +39,15 @@ const ARABIC_FONT = '"IBM Plex Sans Arabic"'
 export const MONO_FONT = `${ARABIC_FONT}, "SF Mono", ui-monospace, Menlo, Consolas, monospace`
 export const SANS_FONT = `${ARABIC_FONT}, "Avenir Next", "Segoe UI", system-ui, sans-serif`
 
-let arabicFonts: Promise<unknown> | undefined
-const loadArabicFonts = () =>
-  (arabicFonts ??= Promise.all([600, 700].map((weight) => document.fonts.load(`${weight} 16px ${ARABIC_FONT}`, "ع"))))
+const ARABIC_FACES = [600, 700].map((weight) => `${weight} 16px ${ARABIC_FONT}`)
+const ARABIC_SAMPLE = "ع"
+
+function subscribeToFonts(onChange: () => void) {
+  document.fonts.addEventListener("loadingdone", onChange)
+  return () => document.fonts.removeEventListener("loadingdone", onChange)
+}
+
+const arabicFontsLoaded = () => ARABIC_FACES.every((face) => document.fonts.check(face, ARABIC_SAMPLE))
 
 /**
  * Label text in the player's language. A canvas draws with whichever font has loaded, so `key` also
@@ -50,15 +56,12 @@ const loadArabicFonts = () =>
 export function useLabelText() {
   const { t, i18n } = useTranslation()
   const language = useLanguage()
-  const [arabicReady, setArabicReady] = useState(false)
+  const arabicReady = useSyncExternalStore(subscribeToFonts, arabicFontsLoaded)
   useEffect(() => {
     if (language !== "ar") return
-    let live = true
-    void loadArabicFonts().then(() => {
-      if (live) setArabicReady(true)
-    })
-    return () => {
-      live = false
+    for (const face of ARABIC_FACES) {
+      // A face that fails to load leaves the fallback font in place, which is all a label can do.
+      void document.fonts.load(face, ARABIC_SAMPLE).catch(() => undefined)
     }
   }, [language])
   return { t, direction: i18n.dir(language), key: `${language}|${arabicReady}` }
