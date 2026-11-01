@@ -157,7 +157,7 @@
     },
     "keypad": {
       "title": "Glyph keypad",
-      "intro": "The keypad has four keys, numbered 1 to 4 from the left. Each key carries a glyph: a frame (circle, triangle, square or arch) with a mark inside. The Operator sees the glyphs and the serial number. The Scanner sees which key is live.",
+      "intro": "The keypad has four keys, numbered 1 to 4 from the left. Each key carries a glyph: a frame (circle, triangle, square or arch) with a mark inside (dot, two dots, upright line, flat line, X or caret). The Operator sees the glyphs and the serial number. The Scanner sees which key is live.",
       "step1": "Step 1. Find the ring below that holds three or four of the keypad's glyphs. A key whose glyph is not in that ring is a dud: never press it.",
       "ring": "Ring",
       "positions": "Glyphs by position",
