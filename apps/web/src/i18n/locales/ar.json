@@ -53,7 +53,7 @@
     "everyoneReady": "الجميع جاهزون.",
     "waitingForHost": "الجميع جاهزون. بانتظار أن يبدأ المضيف.",
     "waitingFor": "بانتظار {{names}}.",
-    "openSeatOf": "مقعد {{role}} الشاغر",
+    "openSeatOf": "من يشغل مقعد {{role}}",
     "share": {
       "idle": "نسخ رابط الدعوة",
       "copied": "تم نسخ الرابط",

@@ -86,7 +86,10 @@ export function LobbyScreen({ lobby }: { readonly lobby: Lobby }) {
               ? t("lobby.everyoneReady")
               : t("lobby.waitingForHost")
             : t("lobby.waitingFor", {
-                names: new Intl.ListFormat(intlLocale(language), { type: "conjunction" }).format(waitingFor),
+                // First-strong isolates keep a Latin name's trailing "!" or digits from jumping in Arabic text.
+                names: new Intl.ListFormat(intlLocale(language), { type: "conjunction" }).format(
+                  waitingFor.map((name) => `\u2068${name}\u2069`),
+                ),
               })}
         </p>
         {error && (
