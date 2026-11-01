@@ -103,6 +103,7 @@ p { margin: 0; }
 .field { display: grid; gap: 6px; font-size: 0.85rem; color: var(--muted); }
 
 input {
+  min-width: 0;
   font: inherit;
   font-size: 1rem;
   color: var(--text);
