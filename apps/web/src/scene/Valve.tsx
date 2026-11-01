@@ -310,12 +310,12 @@ export function ScannerValve({
   )
 }
 
-const GAUGE = { x: 0.15, y: 0.035, radius: 0.098 }
+const GAUGE = { x: 0.155, y: 0.037, radius: 0.106 }
 const GAUGE_PX = 512
 const SWEEP_DEGREES = 270
 const DANGER_FROM = 90
-const READOUT = { x: 0.125, y: -0.1, width: 0.12, height: 0.044 }
-const LAMP = { x: 0.24, y: -0.1 }
+const READOUT = { x: 0.12, y: -0.108, width: 0.11, height: 0.042 }
+const LAMP = { x: 0.225, y: -0.108 }
 
 /** Where the needle points for `pressure`, in radians from +x: 0 at lower left, MAX_PRESSURE at lower right. */
 const needleAngle = (pressure: number) => MathUtils.degToRad(225 - (pressure / MAX_PRESSURE) * SWEEP_DEGREES)
@@ -391,12 +391,10 @@ function PressureGauge({ module, clockOffset }: { readonly module: ScannerModule
       context.direction = "ltr"
       context.textAlign = "center"
       context.textBaseline = "middle"
-      context.fillStyle = "#2a1d0c"
-      context.fillText("888", width / 2, height / 2 + 5)
       context.shadowColor = color
       context.shadowBlur = 18
       context.fillStyle = color
-      context.fillText(String(value).padStart(3, " "), width / 2, height / 2 + 5)
+      context.fillText(String(value), width / 2, height / 2 + 5)
     })
   })
 
@@ -407,9 +405,9 @@ function PressureGauge({ module, clockOffset }: { readonly module: ScannerModule
         <meshBasicMaterial map={face} transparent depthTest={false} toneMapped={false} />
       </mesh>
       <group ref={needle} position={[GAUGE.x, GAUGE.y, 0]} rotation={[0, 0, needleAngle(gauge.start) - Math.PI / 2]}>
-        <mesh position={[0, GAUGE.radius * 0.38, 0]} renderOrder={3}>
-          <planeGeometry args={[0.009, GAUGE.radius * 0.8]} />
-          <meshBasicMaterial color="#ff8a3d" depthTest={false} toneMapped={false} />
+        <mesh position={[0, GAUGE.radius * 0.36, 0]} renderOrder={3}>
+          <planeGeometry args={[0.014, GAUGE.radius * 0.84]} />
+          <meshBasicMaterial color="#ffd166" depthTest={false} toneMapped={false} />
         </mesh>
         <mesh renderOrder={3}>
           <circleGeometry args={[0.012, 20]} />
@@ -447,8 +445,8 @@ function VentLamp({ venting }: { readonly venting: boolean }) {
         <circleGeometry args={[0.012, 20]} />
         <meshBasicMaterial color={venting ? "#ffb347" : "#3a2a12"} depthTest={false} toneMapped={false} />
       </mesh>
-      <mesh position={[0, -0.016, 0]} renderOrder={2}>
-        <planeGeometry args={[0.064, 0.0224]} />
+      <mesh position={[0, -0.017, 0]} renderOrder={2}>
+        <planeGeometry args={[0.08, 0.028]} />
         <meshBasicMaterial map={label} transparent depthTest={false} toneMapped={false} />
       </mesh>
     </group>
