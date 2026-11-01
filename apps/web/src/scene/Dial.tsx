@@ -21,7 +21,7 @@ export type DialControl = {
   readonly focus: () => void
 }
 
-export const clampFrequency = (frequency: number) =>
+const clampFrequency = (frequency: number) =>
   MathUtils.clamp(Math.round(frequency), DIAL_RANGE.min, DIAL_RANGE.max)
 
 const KNOB = { x: -0.15, y: -0.005, radius: 0.08 }
