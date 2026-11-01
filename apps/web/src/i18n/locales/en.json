@@ -80,13 +80,27 @@
     "strikesLabel": "{{strikes}} of {{max}} strikes",
     "xray": "X-RAY",
     "feedback": {
-      "solved": "Clean cut. Module defused.",
-      "strike": "Wrong wire. Strike!"
+      "wires": {
+        "solved": "Clean cut. Module defused.",
+        "strike": "Wrong wire. Strike!"
+      },
+      "keypad": {
+        "accepted": "Key accepted.",
+        "solved": "Keypad defused.",
+        "strike": "Wrong key. Strike!"
+      },
+      "dial": {
+        "solved": "Frequency locked. Module defused.",
+        "strike": "Wrong frequency. Strike!"
+      }
+    },
+    "dial": {
+      "label": "Frequency dial. Enter sends the frequency."
     },
     "hint": {
       "noSeat": "You don't hold a seat in this match.",
-      "operator": "Drag to look around · Click a wire to cut it",
-      "scanner": "Drag to look around · Read each wire's tag to your crew",
+      "operator": "Drag to look around · Click wires to cut and keys to press · Turn the dial by dragging it or with the arrow keys",
+      "scanner": "Drag to look around · Read the wire tags, the live key and the waveform to your crew",
       "analyst": "Drag to look around",
       "openManual": "Open the manual"
     },
@@ -113,7 +127,8 @@
     "strikes": "STRIKES",
     "serial": "SERIAL",
     "safe": "SAFE",
-    "boom": "BOOM"
+    "boom": "BOOM",
+    "send": "SEND"
   },
   "colors": {
     "red": "Red",

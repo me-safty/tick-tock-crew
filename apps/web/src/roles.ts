@@ -7,4 +7,10 @@ export type Seat = Lobby["seats"][number]
 export type Match = NonNullable<FunctionReturnType<typeof api.match.view>>
 export type RoleView = NonNullable<Match["view"]>
 export type ViewOf<R extends RoleView["role"]> = Extract<RoleView, { role: R }>
-export type WireRef = Pick<FunctionArgs<typeof api.match.cutWire>, "module" | "wire">
+type Target<Args> = Omit<Args, "code" | "sessionId">
+
+/** Something the Operator does to the bomb, by module index. */
+export type OperatorAction =
+  | ({ readonly kind: "cut" } & Target<FunctionArgs<typeof api.match.cutWire>>)
+  | ({ readonly kind: "press" } & Target<FunctionArgs<typeof api.match.pressKey>>)
+  | ({ readonly kind: "tune" } & Target<FunctionArgs<typeof api.match.tuneDial>>)

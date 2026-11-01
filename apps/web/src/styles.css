@@ -283,6 +283,8 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
 .feedback { font-weight: 700; }
 .feedback.solved { color: var(--green); border-color: rgb(70 195 123 / 0.6); }
 .feedback.strike { color: var(--red); border-color: rgb(255 77 79 / 0.6); }
+.feedback.accepted { color: var(--amber); }
+.sr-only { position: fixed; top: 0; inset-inline-start: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 .module { display: grid; gap: 12px; padding-top: 14px; border-top: 1px solid var(--line); }
 .module-title { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 1.05rem; }

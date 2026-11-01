@@ -1,12 +1,14 @@
 import { Canvas } from "@react-three/fiber"
-import type { Match, WireRef } from "../roles"
+import type { Match, OperatorAction } from "../roles"
 import { Bomb } from "./Bomb"
 import { Booth } from "./Booth"
+import { type DialControl, OperatorDial, ScannerDial } from "./Dial"
 import { Finale } from "./Finale"
 import { BOMB_POSITION } from "./layout"
 import type { Seat } from "./look"
 import { usePrefersReducedMotion } from "./motion"
 import { SeatCamera } from "./SeatCamera"
+import { OperatorKeypad, ScannerKeypad } from "./Keypad"
 import { OperatorWires, ScannerWires } from "./Wires"
 import { Workshop } from "./Workshop"
 
@@ -21,13 +23,15 @@ type SceneProps = {
   readonly match: Match
   /** Play the win or loss sequence; false when the match was already over on arrival. */
   readonly finale: boolean
-  readonly pendingCut: WireRef | null
-  readonly onCut: (ref: WireRef) => void
+  /** The Operator's action waiting on the server; the bomb takes no other until it settles. */
+  readonly pending: OperatorAction | null
+  readonly onAct: (action: OperatorAction) => void
+  readonly dial: DialControl
   readonly onOpenManual: () => void
 }
 
 /** The 3D view from the player's seat. Each role only gets the props its view carries. */
-export function Scene({ match, finale, pendingCut, onCut, onOpenManual }: SceneProps) {
+export function Scene({ match, finale, ...roleProps }: SceneProps) {
   const reducedMotion = usePrefersReducedMotion()
   const view = match.view
   const seat = SEATS[view?.role ?? "spectator"]
@@ -39,17 +43,18 @@ export function Scene({ match, finale, pendingCut, onCut, onOpenManual }: SceneP
       <hemisphereLight args={["#cdd8ff", "#3a2c22", 1.15]} />
       <directionalLight position={[3, 5, 4]} intensity={1.5} color="#fff1dc" />
       <SeatCamera seat={seat} shaking={ending === "lost" && !reducedMotion} />
-      <RoleSet match={match} pendingCut={pendingCut} onCut={onCut} onOpenManual={onOpenManual} />
+      <RoleSet match={match} {...roleProps} />
       {/* three.js recompiles every lit material when the point-light count changes, so the finale's flash replaces an idle light. */}
       {ending ? <Finale outcome={ending} origin={view && view.role !== "analyst" ? BOMB_POSITION : null} /> : <pointLight intensity={0} />}
     </Canvas>
   )
 }
 
-function RoleSet({ match, pendingCut, onCut, onOpenManual }: Omit<SceneProps, "finale">) {
+function RoleSet({ match, pending, onAct, dial, onOpenManual }: Omit<SceneProps, "finale">) {
   const view = match.view
   if (!view) return <Workshop />
   const exploded = match.status === "lost"
+  const locked = pending !== null || match.status !== "playing"
   switch (view.role) {
     case "operator":
       return (
@@ -57,16 +62,47 @@ function RoleSet({ match, pendingCut, onCut, onOpenManual }: Omit<SceneProps, "f
           <Workshop />
           {!exploded && (
             <Bomb view={view} match={match}>
-              {view.modules.map((module, index) => (
-                <OperatorWires
-                  key={index}
-                  index={index}
-                  module={module}
-                  pending={pendingCut?.module === index ? pendingCut.wire : null}
-                  locked={pendingCut !== null || match.status !== "playing"}
-                  onCut={onCut}
-                />
-              ))}
+              {view.modules.map((module, index) => {
+                switch (module.kind) {
+                  case "wires":
+                    return (
+                      <OperatorWires
+                        key={index}
+                        index={index}
+                        module={module}
+                        pending={pending?.kind === "cut" && pending.module === index ? pending.wire : null}
+                        locked={locked}
+                        onCut={(wire) => onAct({ kind: "cut", module: index, wire })}
+                      />
+                    )
+                  case "keypad":
+                    return (
+                      <OperatorKeypad
+                        key={index}
+                        index={index}
+                        module={module}
+                        pending={pending?.kind === "press" && pending.module === index ? pending.key : null}
+                        locked={locked}
+                        onPress={(key) => onAct({ kind: "press", module: index, key })}
+                      />
+                    )
+                  case "dial":
+                    return (
+                      <OperatorDial
+                        key={index}
+                        index={index}
+                        module={module}
+                        dial={dial}
+                        locked={locked}
+                        onSend={() => onAct({ kind: "tune", module: index, frequency: dial.frequency })}
+                      />
+                    )
+                  default: {
+                    const _exhaustive: never = module
+                    return _exhaustive
+                  }
+                }
+              })}
             </Bomb>
           )}
         </>
@@ -77,9 +113,20 @@ function RoleSet({ match, pendingCut, onCut, onOpenManual }: Omit<SceneProps, "f
           <Workshop />
           {!exploded && (
             <Bomb view={view} match={match}>
-              {view.modules.map((module, index) => (
-                <ScannerWires key={index} index={index} module={module} />
-              ))}
+              {view.modules.map((module, index) => {
+                switch (module.kind) {
+                  case "wires":
+                    return <ScannerWires key={index} index={index} module={module} />
+                  case "keypad":
+                    return <ScannerKeypad key={index} index={index} module={module} />
+                  case "dial":
+                    return <ScannerDial key={index} index={index} module={module} />
+                  default: {
+                    const _exhaustive: never = module
+                    return _exhaustive
+                  }
+                }
+              })}
             </Bomb>
           )}
         </>
