@@ -1,4 +1,4 @@
-export { Difficulty, generateBomb } from "./bomb"
+export { type Bomb, Difficulty, generateBomb } from "./bomb"
 export { DIAL_RANGE, solveDial, WAVE_SHAPES, type Waveform } from "./dial"
 export { FRAMES, type Glyph, MARKS, RINGS, solveKeypad } from "./keypad"
 export { MANUAL_TEXT } from "./manual"
@@ -8,7 +8,9 @@ export {
   initialState,
   matchStatus,
   MatchStatus,
+  type MatchState,
   MAX_STRIKES,
+  type Outcome,
   pressKey,
   tuneDial,
 } from "./match"

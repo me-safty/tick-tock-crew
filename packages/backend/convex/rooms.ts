@@ -163,8 +163,8 @@ export const startMatch = mutation({
       strikes: 0,
       explodeJobId,
     })
-    for (const [index, { kind, solved, progress }] of initialState(generateBomb(seed, DIFFICULTY)).modules.entries()) {
-      await ctx.db.insert("modules", { roomId: room._id, index, kind, solved, progress: { cut: [...progress.cut] } })
+    for (const [index, module] of initialState(generateBomb(seed, DIFFICULTY)).modules.entries()) {
+      await ctx.db.insert("modules", { roomId: room._id, index, ...module })
     }
     return null
   },

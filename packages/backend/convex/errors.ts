@@ -16,6 +16,9 @@ const PLAIN_CODES = [
   "MODULE_ALREADY_SOLVED",
   "WIRE_NOT_FOUND",
   "WIRE_ALREADY_CUT",
+  "KEY_NOT_FOUND",
+  "KEY_ALREADY_PRESSED",
+  "FREQUENCY_OFF_DIAL",
 ] as const
 
 /** What a rejected mutation carries in `ConvexError.data`. Clients translate the code; params fill in the message. */

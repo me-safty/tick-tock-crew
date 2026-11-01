@@ -123,7 +123,11 @@ describe("startMatch", () => {
     expect(room?.status === "playing" && room.endsAt - startedAt).toBeGreaterThanOrEqual(5 * 60_000)
     expect(room?.status === "playing" && room.endsAt - Date.now()).toBeLessThanOrEqual(5 * 60_000)
     const modules = await t.run((ctx) => ctx.db.query("modules").collect())
-    expect(modules).toMatchObject([{ index: 0, kind: "wires", solved: false, progress: { cut: [] } }])
+    expect(modules).toMatchObject([
+      { index: 0, kind: "wires", solved: false, progress: { cut: [] } },
+      { index: 1, kind: "keypad", solved: false, progress: { pressed: [] } },
+      { index: 2, kind: "dial", solved: false },
+    ])
     await expect(t.mutation(api.rooms.leaveSeat, { code, sessionId: "b" })).rejects.toMatchObject({
       data: { code: "MATCH_ALREADY_STARTED" },
     })
