@@ -67,7 +67,6 @@ export function Home() {
         <form className="join" onSubmit={join}>
           <input
             aria-label={t("home.roomCode")}
-            dir="ltr"
             className="code-input"
             value={code}
             onChange={(event) => setCode(event.target.value.toUpperCase())}
