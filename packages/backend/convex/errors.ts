@@ -19,6 +19,7 @@ const PLAIN_CODES = [
   "KEY_NOT_FOUND",
   "KEY_ALREADY_PRESSED",
   "FREQUENCY_OFF_DIAL",
+  "VALVE_NOT_HELD",
 ] as const
 
 /** What a rejected mutation carries in `ConvexError.data`. Clients translate the code; params fill in the message. */

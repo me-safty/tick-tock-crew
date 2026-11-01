@@ -25,6 +25,7 @@ export {
   isHeld,
   MAX_PRESSURE,
   pressureAt,
+  solveValve,
   VALVE_EVENTS,
   type ValveProgress,
 } from "./valve"
