@@ -19,7 +19,7 @@ describe("createRoom and joinRoom", () => {
 
   test("rejects an unknown code", async () => {
     const { t } = await setup()
-    await expect(t.mutation(api.rooms.joinRoom, { code: "ZZZZ0" })).rejects.toThrow("Room not found")
+    await expect(t.mutation(api.rooms.joinRoom, { code: "ZZZZ0" })).rejects.toMatchObject({ data: { code: "ROOM_NOT_FOUND" } })
   })
 })
 
@@ -30,7 +30,7 @@ describe("claimSeat", () => {
     await t.mutation(api.rooms.claimSeat, { code, sessionId: "a", name: "Ada", role: "operator" })
     await expect(
       t.mutation(api.rooms.claimSeat, { code, sessionId: "b", name: "Bo", role: "operator" }),
-    ).rejects.toThrow("That seat is taken")
+    ).rejects.toMatchObject({ data: { code: "SEAT_TAKEN" } })
   })
 
   test("lets another session take the seat of an offline player", async () => {
@@ -70,7 +70,7 @@ describe("claimSeat", () => {
     const { t, code } = await setup()
     await expect(
       t.mutation(api.rooms.claimSeat, { code, sessionId: "a", name: "   ", role: "operator" }),
-    ).rejects.toThrow("nickname")
+    ).rejects.toMatchObject({ data: { code: "NICKNAME_LENGTH", max: 20 } })
   })
 })
 
@@ -80,18 +80,18 @@ describe("startMatch", () => {
     await goOnline(t, code, "host")
     await t.mutation(api.rooms.claimSeat, { code, sessionId: "host", name: "Hana", role: "operator" })
     await t.mutation(api.rooms.setReady, { code, sessionId: "host", ready: true })
-    await expect(t.mutation(api.rooms.startMatch, { code, sessionId: "host" })).rejects.toThrow(
-      "All 3 players must be seated, online and ready",
-    )
+    await expect(t.mutation(api.rooms.startMatch, { code, sessionId: "host" })).rejects.toMatchObject({
+      data: { code: "PLAYERS_NOT_READY" },
+    })
   })
 
   test("rejects when a seated player is not ready", async () => {
     const { t, code } = await setup()
     await seatAll(t, code, true)
     await t.mutation(api.rooms.setReady, { code, sessionId: "c", ready: false })
-    await expect(t.mutation(api.rooms.startMatch, { code, sessionId: "host" })).rejects.toThrow(
-      "All 3 players must be seated, online and ready",
-    )
+    await expect(t.mutation(api.rooms.startMatch, { code, sessionId: "host" })).rejects.toMatchObject({
+      data: { code: "PLAYERS_NOT_READY" },
+    })
   })
 
   test("rejects when a ready player is offline", async () => {
@@ -99,17 +99,17 @@ describe("startMatch", () => {
     await seatAll(t, code, true)
     const { sessionToken } = await goOnline(t, code, "c")
     await t.mutation(api.presence.disconnect, { sessionToken })
-    await expect(t.mutation(api.rooms.startMatch, { code, sessionId: "host" })).rejects.toThrow(
-      "All 3 players must be seated, online and ready",
-    )
+    await expect(t.mutation(api.rooms.startMatch, { code, sessionId: "host" })).rejects.toMatchObject({
+      data: { code: "PLAYERS_NOT_READY" },
+    })
   })
 
   test("rejects a caller who is not the host", async () => {
     const { t, code } = await setup()
     await seatAll(t, code, true)
-    await expect(t.mutation(api.rooms.startMatch, { code, sessionId: "b" })).rejects.toThrow(
-      "Only the host can start the match",
-    )
+    await expect(t.mutation(api.rooms.startMatch, { code, sessionId: "b" })).rejects.toMatchObject({
+      data: { code: "HOST_ONLY" },
+    })
   })
 
   test("starts a 5-minute match with a seed, a module per bomb module, and then locks the seats", async () => {
@@ -124,9 +124,9 @@ describe("startMatch", () => {
     expect(room?.status === "playing" && room.endsAt - Date.now()).toBeLessThanOrEqual(5 * 60_000)
     const modules = await t.run((ctx) => ctx.db.query("modules").collect())
     expect(modules).toMatchObject([{ index: 0, kind: "wires", solved: false, progress: { cut: [] } }])
-    await expect(t.mutation(api.rooms.leaveSeat, { code, sessionId: "b" })).rejects.toThrow(
-      "The match has already started",
-    )
+    await expect(t.mutation(api.rooms.leaveSeat, { code, sessionId: "b" })).rejects.toMatchObject({
+      data: { code: "MATCH_ALREADY_STARTED" },
+    })
   })
 })
 
@@ -163,6 +163,6 @@ describe("presence", () => {
     const { t } = await setup()
     await expect(
       t.mutation(api.presence.heartbeat, { roomId: "ZZZZ0", userId: "a", sessionId: "tab-1", interval: 10_000 }),
-    ).rejects.toThrow("Room not found")
+    ).rejects.toMatchObject({ data: { code: "ROOM_NOT_FOUND" } })
   })
 })

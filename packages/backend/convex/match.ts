@@ -7,9 +7,10 @@ import {
   matchStatus,
   viewFor,
 } from "@tick-tock-crew/rules"
-import { ConvexError, v } from "convex/values"
+import { v } from "convex/values"
 import { Effect } from "effect"
 import type { Doc } from "./_generated/dataModel"
+import { type AppError, appError } from "./errors"
 import { internalMutation, mutation, query, type QueryCtx } from "./_generated/server"
 import { findRoom, findSeat, getRoom } from "./rooms"
 
@@ -99,18 +100,18 @@ export const view = query({
   },
 })
 
-function cutErrorMessage(error: CutWireError) {
+function cutError(error: CutWireError): AppError {
   switch (error._tag) {
     case "MatchOver":
-      return "The match is over"
+      return { code: "MATCH_OVER" }
     case "ModuleNotFound":
-      return "That module doesn't exist"
+      return { code: "MODULE_NOT_FOUND" }
     case "ModuleAlreadySolved":
-      return "That module is already defused"
+      return { code: "MODULE_ALREADY_SOLVED" }
     case "WireNotFound":
-      return "That wire doesn't exist"
+      return { code: "WIRE_NOT_FOUND" }
     case "WireAlreadyCut":
-      return "That wire is already cut"
+      return { code: "WIRE_ALREADY_CUT" }
     default: {
       const _exhaustive: never = error
       return _exhaustive
@@ -123,14 +124,14 @@ export const cutWire = mutation({
   returns: v.union(v.literal("solved"), v.literal("strike")),
   handler: async (ctx, { code, sessionId, module, wire }) => {
     const room = await getRoom(ctx, code)
-    if (room.status !== "playing") throw new ConvexError("The match is over")
+    if (room.status !== "playing") throw appError({ code: "MATCH_OVER" })
     const seat = await findSeat(ctx, { roomId: room._id, sessionId })
-    if (seat?.role !== "operator") throw new ConvexError("Only the Operator can cut wires")
-    if (Date.now() >= room.endsAt) throw new ConvexError("Time is up")
+    if (seat?.role !== "operator") throw appError({ code: "OPERATOR_ONLY" })
+    if (Date.now() >= room.endsAt) throw appError({ code: "TIME_UP" })
 
     const { bomb, modules, state } = await loadMatch(ctx, room)
     const outcome = Effect.runSync(
-      cutWireRule(bomb, state, { module, wire }).pipe(Effect.mapError((error) => new ConvexError(cutErrorMessage(error)))),
+      cutWireRule(bomb, state, { module, wire }).pipe(Effect.mapError((error) => appError(cutError(error)))),
     )
     const moduleDoc = modules[module]
     const next = outcome.state.modules[module]

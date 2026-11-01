@@ -45,7 +45,7 @@ describe("cutWire", () => {
 
     expect(await cut(t, code, wrong[0] ?? -1)).toBe("strike")
     expect(await getRoom(t)).toMatchObject({ status: "playing", strikes: 1 })
-    await expect(cut(t, code, wrong[0] ?? -1)).rejects.toThrow("That wire is already cut")
+    await expect(cut(t, code, wrong[0] ?? -1)).rejects.toMatchObject({ data: { code: "WIRE_ALREADY_CUT" } })
     expect(await getRoom(t)).toMatchObject({ strikes: 1 })
   })
 
@@ -56,7 +56,7 @@ describe("cutWire", () => {
     for (const wire of wrong.slice(0, 3)) await cut(t, code, wire)
     expect(await getRoom(t)).toMatchObject({ status: "lost", strikes: 3 })
     expect(await jobState(t, room)).toBe("canceled")
-    await expect(cut(t, code, answer)).rejects.toThrow("The match is over")
+    await expect(cut(t, code, answer)).rejects.toMatchObject({ data: { code: "MATCH_OVER" } })
   })
 
   test("only lets the Operator cut", async () => {
@@ -64,7 +64,7 @@ describe("cutWire", () => {
     const { answer } = await bombOf(t)
 
     for (const sessionId of [analyst.sessionId, scanner.sessionId, "stranger"]) {
-      await expect(cut(t, code, answer, sessionId)).rejects.toThrow("Only the Operator can cut wires")
+      await expect(cut(t, code, answer, sessionId)).rejects.toMatchObject({ data: { code: "OPERATOR_ONLY" } })
     }
     expect(await getRoom(t)).toMatchObject({ status: "playing", strikes: 0 })
   })
@@ -75,7 +75,7 @@ describe("cutWire", () => {
     const { room, answer } = await bombOf(t)
 
     vi.setSystemTime(room.endsAt)
-    await expect(cut(t, code, answer)).rejects.toThrow("Time is up")
+    await expect(cut(t, code, answer)).rejects.toMatchObject({ data: { code: "TIME_UP" } })
   })
 })
 

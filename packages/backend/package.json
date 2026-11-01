@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./api": "./convex/_generated/api.js"
+    "./api": "./convex/_generated/api.js",
+    "./errors": "./convex/errors.ts"
   },
   "scripts": {
     "dev": "convex dev",
