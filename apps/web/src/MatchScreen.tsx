@@ -210,22 +210,36 @@ function DialInput({
   )
 }
 
+/** A press shorter than this is a tap: it selects the valve without venting, so it never costs a strike. */
+const TAP_MS = 150
+
 function useValve({ armed, onHold, onRelease }: { armed: boolean; onHold: () => void; onRelease: () => void }) {
   const [held, setHeld] = useState(false)
   const [focused, setFocused] = useState(false)
-  // Window listeners outlive the render that set them up, so they read the hold from a ref.
+  // Window listeners outlive the render that set them up, so they read the hold from refs.
   const holding = useRef<HoldSource | null>(null)
+  const pendingHold = useRef<ReturnType<typeof setTimeout> | null>(null)
   const button = useRef<HTMLButtonElement>(null)
+  const latestHold = useRef(onHold)
+  latestHold.current = onHold
   const press = (by: HoldSource) => {
     if (holding.current || !armed) return
     holding.current = by
     setHeld(true)
-    onHold()
+    pendingHold.current = setTimeout(() => {
+      pendingHold.current = null
+      latestHold.current()
+    }, TAP_MS)
   }
   const letGo = () => {
     if (!holding.current) return
     holding.current = null
     setHeld(false)
+    if (pendingHold.current) {
+      clearTimeout(pendingHold.current)
+      pendingHold.current = null
+      return
+    }
     onRelease()
   }
   // A click on the canvas takes focus off the button, which must not end a hold the pointer just started.
@@ -236,7 +250,7 @@ function useValve({ armed, onHold, onRelease }: { armed: boolean; onHold: () => 
   const latestLetGo = useRef(letGo)
   latestLetGo.current = letGo
   useEffect(() => {
-    // Switching away mid-hold would leave the valve venting with nobody at it.
+    // Without focus the page never sees the key or button come up, so a hold would be stuck venting.
     const away = () => {
       if (document.hidden || !document.hasFocus()) latestLetGo.current()
     }
@@ -245,6 +259,7 @@ function useValve({ armed, onHold, onRelease }: { armed: boolean; onHold: () => 
     return () => {
       window.removeEventListener("blur", away)
       document.removeEventListener("visibilitychange", away)
+      if (pendingHold.current) clearTimeout(pendingHold.current)
     }
   }, [])
   const control: ValveControl = {
@@ -255,7 +270,7 @@ function useValve({ armed, onHold, onRelease }: { armed: boolean; onHold: () => 
     letGo,
     focus: () => button.current?.focus({ preventScroll: true }),
   }
-  return { control, button, setFocused, blurred }
+  return { control, button, blurred, setFocused }
 }
 
 const HOLD_KEYS = new Set([" ", "Enter"])
