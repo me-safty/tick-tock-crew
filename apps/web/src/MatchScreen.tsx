@@ -65,7 +65,8 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
   })
   const clockOffset = useServerClockOffset(role === "scanner")
   const pings = usePings(code)
-  const canPingBomb = (role === "operator" || role === "scanner") && !ended
+  // The pause overlay covers the bomb, so only emotes and manual pings go out while paused.
+  const canPingBomb = (role === "operator" || role === "scanner") && !ended && !paused
   useEffect(() => {
     if (!pinging) return
     const cancel = (event: KeyboardEvent) => {
