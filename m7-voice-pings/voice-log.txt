@@ -1,0 +1,16 @@
+operator muted; analyst sees operator badge: voice-badge muted
+analyst saw the muted operator speaking in 0 of 40 samples
+== match
+operator <- analyst  connected  inbound audio 78654 -> 90029 bytes (+11375 in 3 s)
+operator <- scanner  connected  inbound audio 72640 -> 83440 bytes (+10800 in 3 s)
+analyst  <- operator connected  inbound audio 55532 -> 67032 bytes (+11500 in 3 s)
+analyst  <- scanner  connected  inbound audio 67827 -> 78491 bytes (+10664 in 3 s)
+scanner  <- operator connected  inbound audio 50170 -> 61090 bytes (+10920 in 3 s)
+scanner  <- analyst  connected  inbound audio 67546 -> 78332 bytes (+10786 in 3 s)
+== match with the analyst's mic denied
+operator <- analyst  connected  inbound audio 0 -> 0 bytes (+0 in 3 s)
+operator <- scanner  connected  inbound audio 41665 -> 51488 bytes (+9823 in 3 s)
+analyst  <- operator connected  inbound audio 51664 -> 62109 bytes (+10445 in 3 s)
+analyst  <- scanner  connected  inbound audio 36083 -> 46307 bytes (+10224 in 3 s)
+scanner  <- operator connected  inbound audio 42869 -> 53345 bytes (+10476 in 3 s)
+scanner  <- analyst  connected  inbound audio 0 -> 0 bytes (+0 in 3 s)
