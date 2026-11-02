@@ -1,7 +1,9 @@
 import { api } from "@tick-tock-crew/backend/api"
+import { Difficulty, MATCH_MS } from "@tick-tock-crew/rules"
 import { useMutation } from "convex/react"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
+import { formatClock } from "./clock"
 import { useMutationError } from "./errors"
 import { sessionId, useNickname } from "./guest"
 import { intlLocale, useLanguage } from "./i18n"
@@ -19,6 +21,7 @@ export function LobbyScreen({ lobby }: { readonly lobby: Lobby }) {
   const leaveSeat = useMutation(api.rooms.leaveSeat)
   const setReady = useMutation(api.rooms.setReady)
   const startMatch = useMutation(api.rooms.startMatch)
+  const setDifficulty = useMutation(api.rooms.setDifficulty)
   useEffect(() => {
     void preloadScene()
   }, [])
@@ -70,6 +73,12 @@ export function LobbyScreen({ lobby }: { readonly lobby: Lobby }) {
         ))}
       </ul>
 
+      <DifficultyPicker
+        difficulty={lobby.difficulty}
+        isHost={lobby.isHost}
+        onPick={(difficulty) => void run(setDifficulty({ ...room, difficulty }))}
+      />
+
       {seated && (
         <section className="voice-panel" aria-labelledby="voice-title">
           <h2 id="voice-title" className="eyebrow">
@@ -109,6 +118,39 @@ export function LobbyScreen({ lobby }: { readonly lobby: Lobby }) {
         )}
       </footer>
     </main>
+  )
+}
+
+function DifficultyPicker({
+  difficulty,
+  isHost,
+  onPick,
+}: {
+  readonly difficulty: Difficulty
+  readonly isHost: boolean
+  readonly onPick: (difficulty: Difficulty) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <fieldset className="difficulty-panel" disabled={!isHost}>
+      <legend className="eyebrow">{t("lobby.difficulty.title")}</legend>
+      <div className="difficulty-options">
+        {Difficulty.literals.map((level) => (
+          <label key={level} className={`difficulty-option${level === difficulty ? " on" : ""}`}>
+            <input type="radio" name="difficulty" value={level} checked={level === difficulty} onChange={() => onPick(level)} />
+            <span className="difficulty-name">{t(`lobby.difficulty.${level}`)}</span>
+            <span className="difficulty-clock" dir="ltr" aria-hidden>
+              {formatClock(MATCH_MS[level] / 1000)}
+            </span>
+            <span className="sr-only">{t("lobby.difficulty.clock", { clock: formatClock(MATCH_MS[level] / 1000) })}</span>
+          </label>
+        ))}
+      </div>
+      <p className="muted">
+        {t(`lobby.difficulty.blurb.${difficulty}`)}
+        {!isHost && ` ${t("lobby.difficulty.hostPicks")}`}
+      </p>
+    </fieldset>
   )
 }
 

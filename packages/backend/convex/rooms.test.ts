@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest"
-import { api } from "./_generated/api"
+import { api, internal } from "./_generated/api"
 import { goOnline, seatAll, setup } from "./test.setup"
 
 afterEach(() => {
@@ -132,6 +132,97 @@ describe("startMatch", () => {
     await expect(t.mutation(api.rooms.leaveSeat, { code, sessionId: "b" })).rejects.toMatchObject({
       data: { code: "MATCH_ALREADY_STARTED" },
     })
+  })
+})
+
+describe("difficulty", () => {
+  test("starts on normal; the host picks another and the match runs on its timer", async () => {
+    const { t, code } = await setup()
+    await seatAll(t, code, true)
+    expect((await t.query(api.rooms.lobby, { code, sessionId: "b" }))?.difficulty).toBe("normal")
+    await t.mutation(api.rooms.setDifficulty, { code, sessionId: "host", difficulty: "hard" })
+    expect((await t.query(api.rooms.lobby, { code, sessionId: "b" }))?.difficulty).toBe("hard")
+
+    const startedAt = Date.now()
+    await t.mutation(api.rooms.startMatch, { code, sessionId: "host" })
+    const room = await t.run((ctx) => ctx.db.query("rooms").first())
+    expect(room).toMatchObject({ status: "playing", difficulty: "hard" })
+    expect(room?.status === "playing" && room.endsAt - startedAt).toBeGreaterThanOrEqual(4 * 60_000)
+    expect(room?.status === "playing" && room.endsAt - Date.now()).toBeLessThanOrEqual(4 * 60_000)
+  })
+
+  test("only the host picks it", async () => {
+    const { t, code } = await setup()
+    await seatAll(t, code, false)
+    await expect(t.mutation(api.rooms.setDifficulty, { code, sessionId: "b", difficulty: "easy" })).rejects.toMatchObject({
+      data: { code: "HOST_ONLY" },
+    })
+  })
+})
+
+describe("host", () => {
+  test("passes to the first present seat when the host leaves, and back when they return", async () => {
+    const { t, code } = await setup()
+    await seatAll(t, code, true)
+    const { sessionToken } = await goOnline(t, code, "host")
+    await t.mutation(api.presence.disconnect, { sessionToken })
+
+    const lobby = await t.query(api.rooms.lobby, { code, sessionId: "b" })
+    expect(lobby?.isHost).toBe(true)
+    expect(lobby?.seats.map((seat) => seat.player?.isHost)).toEqual([false, true, false])
+    await t.mutation(api.rooms.setDifficulty, { code, sessionId: "b", difficulty: "easy" })
+    await expect(t.mutation(api.rooms.startMatch, { code, sessionId: "host" })).rejects.toMatchObject({
+      data: { code: "HOST_ONLY" },
+    })
+
+    await goOnline(t, code, "host")
+    expect((await t.query(api.rooms.lobby, { code, sessionId: "host" }))?.isHost).toBe(true)
+  })
+
+  test("passes to someone present when no seated player is", async () => {
+    const { t, code } = await setup()
+    await goOnline(t, code, "watcher")
+    expect((await t.query(api.rooms.lobby, { code, sessionId: "watcher" }))?.isHost).toBe(true)
+  })
+})
+
+describe("playAgain", () => {
+  test("brings the crew back to the lobby in the same seats, not ready, and the next start rolls a new bomb", async () => {
+    vi.useFakeTimers()
+    const { t, code } = await setup()
+    await seatAll(t, code, true)
+    await t.mutation(api.rooms.setDifficulty, { code, sessionId: "host", difficulty: "easy" })
+    await t.mutation(api.rooms.startMatch, { code, sessionId: "host" })
+    const first = await t.run((ctx) => ctx.db.query("rooms").first())
+    if (first?.status !== "playing") throw new Error("expected a playing room")
+    await expect(t.mutation(api.rooms.playAgain, { code, sessionId: "b" })).rejects.toMatchObject({
+      data: { code: "MATCH_ALREADY_STARTED" },
+    })
+    await t.mutation(internal.match.explode, { roomId: first._id })
+    await expect(t.mutation(api.rooms.playAgain, { code, sessionId: "stranger" })).rejects.toMatchObject({
+      data: { code: "SEAT_REQUIRED" },
+    })
+
+    await t.mutation(api.rooms.playAgain, { code, sessionId: "b" })
+    await t.mutation(api.rooms.playAgain, { code, sessionId: "c" })
+    const lobby = await t.query(api.rooms.lobby, { code, sessionId: "host" })
+    expect(lobby).toMatchObject({ status: "lobby", difficulty: "easy" })
+    expect(lobby?.seats.map((seat) => [seat.player?.name, seat.player?.ready])).toEqual([
+      ["Hana", false],
+      ["Bo", false],
+      ["Cy", false],
+    ])
+    expect(await t.run((ctx) => ctx.db.query("modules").collect())).toEqual([])
+
+    for (const sessionId of ["host", "b", "c"]) {
+      await goOnline(t, code, sessionId)
+      await t.mutation(api.rooms.setReady, { code, sessionId, ready: true })
+    }
+    await t.mutation(api.rooms.startMatch, { code, sessionId: "host" })
+    const second = await t.run((ctx) => ctx.db.query("rooms").first())
+    expect(second).toMatchObject({ status: "playing", difficulty: "easy" })
+    expect(second?.status === "playing" && second.seed).not.toBe(first.seed)
+    expect(await t.run((ctx) => ctx.db.query("modules").collect())).toHaveLength(4)
   })
 })
 

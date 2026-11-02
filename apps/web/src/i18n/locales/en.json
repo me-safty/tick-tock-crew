@@ -69,6 +69,19 @@
       "open": "Open seat",
       "switchHere": "Switch here",
       "claim": "Claim seat"
+    },
+    "difficulty": {
+      "title": "Difficulty",
+      "easy": "Easy",
+      "normal": "Normal",
+      "hard": "Hard",
+      "blurb": {
+        "easy": "Fewer wires, a gentle dial and a slow valve.",
+        "normal": "The standard bomb.",
+        "hard": "More wires, a decoy key, busier waves and a fast valve."
+      },
+      "hostPicks": "The host picks the difficulty.",
+      "clock": "{{clock}} on the clock"
     }
   },
   "match": {
@@ -95,8 +108,7 @@
       },
       "valve": {
         "solved": "Sealed inside the band. Valve defused.",
-        "strike": "Sealed outside the band. Strike!",
-        "burst": "The valve burst before you grabbed it. Strike!"
+        "strike": "Sealed outside the band. Strike!"
       }
     },
     "dial": {
@@ -126,8 +138,10 @@
       "wonReason": "Every module is defused. Nice work, crew.",
       "strikesReason": "Three strikes. The bomb went off.",
       "timeReason": "The timer ran out. The bomb went off.",
-      "strikesSummary": "Strikes: {{strikes}} of {{max}}"
-    }
+      "strikesSummary": "Strikes: {{strikes}} of {{max}}",
+      "playAgain": "Play again"
+    },
+    "burst": "The valve burst: the pressure hit 100. Strike!"
   },
   "scene": {
     "binderTitle": "FIELD MANUAL",
@@ -250,6 +264,8 @@
     "HOST_ONLY": "Only the host can start the match",
     "PLAYERS_NOT_READY": "All 3 players must be seated, online and ready",
     "MATCH_OVER": "The match is over",
+    "MATCH_PAUSED": "The match is paused until everyone is back",
+    "ALREADY_SEATED": "You already have a seat",
     "OPERATOR_ONLY": "Only the Operator can touch the bomb",
     "TIME_UP": "Time is up",
     "MODULE_NOT_FOUND": "That module doesn't exist",
@@ -265,5 +281,13 @@
     "PING_TARGET_NOT_FOUND": "There's nothing there to point at",
     "TOO_MANY_PINGS": "Slow down: wait a moment before the next ping",
     "NICKNAME_LENGTH": "Pick a nickname of 1 to {{max}} characters"
+  },
+  "pause": {
+    "eyebrow": "Paused",
+    "title": "Waiting for the crew",
+    "waitingFor": "Waiting for {{seats}} to come back.",
+    "seat": "the {{role}} ({{name}})",
+    "timerStopped": "The timer is stopped. It starts again as soon as everyone is back.",
+    "takeOver": "Take over as {{role}}"
   }
 }

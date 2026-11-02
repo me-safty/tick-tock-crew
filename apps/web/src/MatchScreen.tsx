@@ -3,7 +3,7 @@ import { DIAL_RANGE, MAX_STRIKES } from "@tick-tock-crew/rules"
 import { useMutation, useQuery } from "convex/react"
 import { lazy, type RefObject, Suspense, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { formatClock, secondsLeft, URGENT_SECONDS } from "./clock"
+import { clockTime, formatClock, secondsLeft, URGENT_SECONDS } from "./clock"
 import { Callouts } from "./Callouts"
 import { CrewBar } from "./CrewBar"
 import { EmoteWheel } from "./EmoteWheel"
@@ -11,6 +11,7 @@ import { useMutationError } from "./errors"
 import { sessionId } from "./guest"
 import { LanguageSwitch } from "./i18n/LanguageSwitch"
 import { ManualSheet, PinIcon } from "./ManualSheet"
+import { PauseOverlay } from "./PauseOverlay"
 import { bombPings, pingedSections, usePings } from "./pings"
 import type { Lobby, Match, OperatorAction, RoleView, ViewOf } from "./roles"
 import { navigate } from "./router"
@@ -35,13 +36,16 @@ export function MatchScreen({ lobby }: { readonly lobby: Lobby }) {
 function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: Match }) {
   const { code } = lobby
   const { t } = useTranslation()
+  const ended = match.status === "won" || match.status === "lost"
+  const paused = match.status === "paused"
   // A room that was already over when it opened skips straight to the end screen.
-  const [sawPlaying] = useState(match.status === "playing")
+  const [sawPlaying] = useState(!ended)
   const [finaleDone, setFinaleDone] = useState(false)
   const [manualOpen, setManualOpen] = useState(true)
   const operator = useOperator(code)
   const dial = useDial()
-  const ended = match.status !== "playing"
+  useAbsenceReport({ lobby, playing: match.status === "playing" })
+  const burst = useBurstNotice(match.bursts)
   useEffect(() => {
     if (!ended) return
     const id = setTimeout(() => setFinaleDone(true), FINALE_MS)
@@ -50,17 +54,19 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
   const finale = ended && sawPlaying && !finaleDone
   const role = match.view?.role ?? "spectator"
   const dialModule = match.view?.role === "operator" ? match.view.modules.findIndex((module) => module.kind === "dial") : -1
-  const dialArmed = dialModule >= 0 && match.view?.modules[dialModule]?.solved === false && !ended
+  const dialArmed = dialModule >= 0 && match.view?.modules[dialModule]?.solved === false && !ended && !paused
   const valveModule = match.view?.role === "operator" ? match.view.modules.findIndex((module) => module.kind === "valve") : -1
   const [pinging, setPinging] = useState(false)
   const valve = useValve({
-    armed: valveModule >= 0 && match.view?.modules[valveModule]?.solved === false && !ended && !pinging,
+    armed: valveModule >= 0 && match.view?.modules[valveModule]?.solved === false && !ended && !paused && !pinging,
+    paused,
     onHold: () => void operator.act({ kind: "hold", module: valveModule }),
     onRelease: () => void operator.act({ kind: "release", module: valveModule }),
   })
   const clockOffset = useServerClockOffset(role === "scanner")
   const pings = usePings(code)
-  const canPingBomb = (role === "operator" || role === "scanner") && !ended
+  // The pause overlay covers the bomb, so only emotes and manual pings go out while paused.
+  const canPingBomb = (role === "operator" || role === "scanner") && !ended && !paused
   useEffect(() => {
     if (!pinging) return
     const cancel = (event: KeyboardEvent) => {
@@ -96,6 +102,8 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
       {dialArmed && <DialInput dial={dial} onSend={sendFrequency} />}
       {valve.control.armed && <ValveInput valve={valve} />}
       {role === "scanner" && <div className="xray-lens" data-label={t("match.xray")} aria-hidden />}
+      {/* Under the HUD, so the stopped clock stays in view. */}
+      {paused && <PauseOverlay lobby={lobby} seated={match.view !== null} />}
       <header className="hud">
         <div className="hud-start">
           <div className="hud-role">
@@ -122,7 +130,7 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
         <div className="hud-end">
           {!ended && (
             <div className="hud-clock">
-              <Countdown endsAt={match.endsAt} />
+              <Countdown match={match} />
               <Strikes strikes={match.strikes} />
             </div>
           )}
@@ -131,6 +139,11 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
       </header>
       {!ended && (
         <footer className="hud-hint">
+          {burst && (
+            <p className="feedback strike" role="alert">
+              {t("match.burst")}
+            </p>
+          )}
           {operator.feedback && (
             <p className={`feedback ${operator.feedback.outcome}`} role="status">
               {t(`match.feedback.${operator.feedback.text}`)}
@@ -141,14 +154,14 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
               {operator.error ?? pings.error}
             </p>
           )}
-          {pinging && canPingBomb ? (
+          {paused ? null : pinging && canPingBomb ? (
             <p className="hint">{t("ping.hint")}</p>
           ) : (
             <Hint view={match.view} manualOpen={manualOpen} onOpenManual={() => setManualOpen(true)} />
           )}
         </footer>
       )}
-      {match.view?.role === "analyst" && manualOpen && !ended && (
+      {match.view?.role === "analyst" && manualOpen && !ended && !paused && (
         <ManualSheet
           manual={match.view.manual}
           pinged={pingedSections(pings.pings)}
@@ -165,12 +178,40 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
         />
       )}
       {finale && <div className={`finale-flash ${match.status}`} aria-hidden />}
-      {ended && !finale && <MatchOver match={match} />}
+      {ended && !finale && <MatchOver code={code} match={match} />}
     </div>
   )
 }
 
 const FEEDBACK_MS = 4000
+
+/** Whether to show that the valve just burst. Bursts from before this screen opened aren't news. */
+function useBurstNotice(bursts: number) {
+  const [seen] = useState(bursts)
+  const [shown, setShown] = useState(false)
+  useEffect(() => {
+    if (bursts === seen) return
+    setShown(true)
+    const id = setTimeout(() => setShown(false), FEEDBACK_MS)
+    return () => clearTimeout(id)
+  }, [bursts, seen])
+  return shown
+}
+
+/**
+ * Tells the server when a seat drops mid-match. The server checks presence itself and pauses only if the seat is
+ * still empty after a grace period, so every viewer may report and a reload never pauses.
+ */
+function useAbsenceReport({ lobby, playing }: { readonly lobby: Lobby; readonly playing: boolean }) {
+  const reportAbsence = useMutation(api.pause.reportAbsence)
+  const absent = lobby.seats
+    .filter((seat) => seat.player && !seat.player.online)
+    .map((seat) => seat.role)
+    .join()
+  useEffect(() => {
+    if (playing && absent) void reportAbsence({ code: lobby.code })
+  }, [playing, absent, lobby.code, reportAbsence])
+}
 
 function useOperator(code: string) {
   const cutWire = useMutation(api.match.cutWire)
@@ -201,10 +242,10 @@ function useOperator(code: string) {
         const outcome = await tuneDial({ code, sessionId, module: action.module, frequency: action.frequency })
         return { outcome, text: `dial.${outcome}` } as const
       }
-      case "hold": {
-        const outcome = await holdValve({ code, sessionId, module: action.module })
-        return outcome === "burst" ? ({ outcome: "strike", text: "valve.burst" } as const) : null
-      }
+      case "hold":
+        // A hold that finds the valve topped out bursts it; the burst notice tells the whole crew.
+        await holdValve({ code, sessionId, module: action.module })
+        return null
       case "release": {
         const outcome = await releaseValve({ code, sessionId, module: action.module })
         return { outcome, text: `valve.${outcome}` } as const
@@ -272,7 +313,17 @@ function DialInput({
 /** A press shorter than this is a tap: it selects the valve without venting, so it never costs a strike. */
 const TAP_MS = 150
 
-function useValve({ armed, onHold, onRelease }: { armed: boolean; onHold: () => void; onRelease: () => void }) {
+function useValve({
+  armed,
+  paused,
+  onHold,
+  onRelease,
+}: {
+  armed: boolean
+  paused: boolean
+  onHold: () => void
+  onRelease: () => void
+}) {
   const [held, setHeld] = useState(false)
   const [focused, setFocused] = useState(false)
   // Window listeners outlive the render that set them up, so they read the hold from refs.
@@ -308,6 +359,14 @@ function useValve({ armed, onHold, onRelease }: { armed: boolean; onHold: () => 
   }
   const latestLetGo = useRef(letGo)
   latestLetGo.current = letGo
+  // The server seals a held valve when the match pauses, so the hand comes off without a release to judge.
+  useEffect(() => {
+    if (!paused) return
+    holding.current = null
+    setHeld(false)
+    if (pendingHold.current) clearTimeout(pendingHold.current)
+    pendingHold.current = null
+  }, [paused])
   useEffect(() => {
     // Without focus the page never sees the key or button come up, so a hold would be stuck venting.
     const away = () => {
@@ -411,12 +470,12 @@ function useNow(intervalMs: number) {
   return now
 }
 
-function Countdown({ endsAt }: { readonly endsAt: number }) {
+function Countdown({ match }: { readonly match: Match }) {
   const { t } = useTranslation()
-  const seconds = secondsLeft(endsAt, useNow(250))
+  const seconds = secondsLeft(match.endsAt, clockTime(match, useNow(250)))
   const clock = formatClock(seconds)
   return (
-    <span className={`led big${seconds <= URGENT_SECONDS ? " urgent" : ""}`} role="timer" aria-label={t("match.timeLeft", { clock })}>
+    <span className={`led big${seconds <= URGENT_SECONDS && match.status === "playing" ? " urgent" : ""}`} role="timer" aria-label={t("match.timeLeft", { clock })}>
       {clock}
     </span>
   )
@@ -437,8 +496,10 @@ function Strikes({ strikes }: { readonly strikes: number }) {
   )
 }
 
-function MatchOver({ match }: { readonly match: Match }) {
+function MatchOver({ code, match }: { readonly code: string; readonly match: Match }) {
   const { t } = useTranslation()
+  const playAgain = useMutation(api.rooms.playAgain)
+  const { error, run } = useMutationError()
   const won = match.status === "won"
   const title = match.view ? (won ? "youWon" : "youLost") : won ? "crewWon" : "crewLost"
   const reason = won ? "wonReason" : match.strikes >= MAX_STRIKES ? "strikesReason" : "timeReason"
@@ -449,9 +510,21 @@ function MatchOver({ match }: { readonly match: Match }) {
         <h1>{t(`match.over.${title}`)}</h1>
         <p>{t(`match.over.${reason}`)}</p>
         <p className="muted">{t("match.over.strikesSummary", { strikes: match.strikes, max: MAX_STRIKES })}</p>
-        <button type="button" className="button primary" onClick={() => navigate("/")}>
-          {t("common.backHome")}
-        </button>
+        <div className="match-over-actions">
+          {match.view && (
+            <button type="button" className="button primary" onClick={() => void run(playAgain({ code, sessionId }))}>
+              {t("match.over.playAgain")}
+            </button>
+          )}
+          <button type="button" className={match.view ? "button" : "button primary"} onClick={() => navigate("/")}>
+            {t("common.backHome")}
+          </button>
+        </div>
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
       </section>
     </main>
   )

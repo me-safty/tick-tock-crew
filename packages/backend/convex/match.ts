@@ -1,6 +1,7 @@
 import {
   type ActionError,
   type Bomb,
+  burstCount,
   burstValve as burstValveRule,
   COLORS,
   cutWire as cutWireRule,
@@ -32,10 +33,10 @@ import { literals, valveEvent } from "./schema"
 import { SIGNAL_TTL_MS } from "./signals"
 import { scheduleBurst } from "./valve"
 
-type MatchRoom = Exclude<Doc<"rooms">, { status: "lobby" }>
+export type MatchRoom = Exclude<Doc<"rooms">, { status: "lobby" }>
 type PlayingRoom = Extract<MatchRoom, { status: "playing" }>
 
-async function loadMatch(ctx: QueryCtx, room: MatchRoom) {
+export async function loadMatch(ctx: QueryCtx, room: MatchRoom) {
   const bomb = generateBomb(room.seed, room.difficulty)
   const modules = await ctx.db
     .query("modules")
@@ -131,25 +132,35 @@ const roleView = v.union(
   }),
 )
 
+const matchView = {
+  endsAt: v.number(),
+  strikes: v.number(),
+  /** How often the valve has burst, so every role can say why a strike landed. */
+  bursts: v.number(),
+  view: v.union(v.null(), roleView),
+}
+
 export const view = query({
   args: { code: v.string(), sessionId: v.string() },
   returns: v.union(
     v.null(),
-    v.object({
-      status: v.union(v.literal("playing"), v.literal("won"), v.literal("lost")),
-      endsAt: v.number(),
-      strikes: v.number(),
-      view: v.union(v.null(), roleView),
-    }),
+    v.object({ ...matchView, status: v.union(v.literal("playing"), v.literal("won"), v.literal("lost")) }),
+    // The clock reads endsAt - pausedAt until play resumes.
+    v.object({ ...matchView, status: v.literal("paused"), pausedAt: v.number() }),
   ),
   handler: async (ctx, { code, sessionId }) => {
     const room = await findRoom(ctx, code)
     if (!room || room.status === "lobby") return null
     const seat = await findSeat(ctx, { roomId: room._id, sessionId })
-    const match = { status: room.status, endsAt: room.endsAt, strikes: room.strikes }
-    if (!seat) return { ...match, view: null }
     const { bomb, state } = await loadMatch(ctx, room)
-    return { ...match, view: viewFor(bomb, state, seat.role) }
+    const valve = state.modules.find((module) => module.kind === "valve")
+    const shared = {
+      endsAt: room.endsAt,
+      strikes: room.strikes,
+      bursts: valve?.kind === "valve" ? burstCount(valve.progress) : 0,
+      view: seat ? viewFor(bomb, state, seat.role) : null,
+    }
+    return room.status === "paused" ? { ...shared, status: room.status, pausedAt: room.pausedAt } : { ...shared, status: room.status }
   },
 })
 
@@ -212,6 +223,7 @@ async function operatorAction<Kind extends string>(
   act: (bomb: Bomb, state: MatchState, now: number) => Effect.Effect<Outcome<Kind>, ActionError>,
 ): Promise<Kind> {
   const room = await getRoom(ctx, code)
+  if (room.status === "paused") throw appError({ code: "MATCH_PAUSED" })
   if (room.status !== "playing") throw appError({ code: "MATCH_OVER" })
   const seat = await findSeat(ctx, { roomId: room._id, sessionId })
   if (seat?.role !== "operator") throw appError({ code: "OPERATOR_ONLY" })

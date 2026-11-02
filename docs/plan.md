@@ -11,9 +11,11 @@ Original 3-player co-op bomb-defusal web game, built for play with friends. Same
 | **Scanner** | See internals (X-ray, gauges, waveforms) | Touch anything |
 
 - Exactly 3 players, one per role. Fixed seats; camera can look around (no walking).
-- A match: one bomb generated from a seed with all 4 modules, 5-minute timer (difficulty presets change timer and module complexity), 3 strikes.
+- A match: one bomb generated from a seed with all 4 modules, a timer, 3 strikes. The host picks a difficulty preset in the lobby: easy (6:00; 3–4 wires, no decoy key, gentle waves, slow valve), normal (5:00) or hard (4:00; 5–6 wires, a decoy key, busier waves, fast valve).
+- Hosting follows presence: the room's creator while they are here, else the first present seat (operator, analyst, scanner), else anyone present, so a room never gets stuck.
+- After a win or a loss, Play again brings the crew back to the same lobby, seats kept and not ready; the next start rolls a new seed.
 - Guests: nickname + anonymous sessionId in localStorage, join by 4-letter room code. Lobby: claim a seat, ready up; match starts when all 3 seats are ready.
-- If a player disconnects mid-match, the match pauses until they rejoin their seat.
+- If a player disconnects mid-match, the match pauses until they rejoin their seat or someone takes it over. A hidden tab is not a disconnect.
 
 ### Modules (MVP)
 
@@ -36,13 +38,13 @@ The valve's pressure slowly rises; holding the handle vents it and the needle fa
 - **packages/rules** — pure Effect 4.x game logic shared by client and server: seeded PRNG, `generateBomb(seed, difficulty)`, `viewFor(bomb, role)`, action validation, valve simulation.
 - **Tests** — Vitest everywhere, run via `bun run test` (convex-test needs Vite's `import.meta.glob`, so not `bun test`). `@effect/vitest` for rules, `convex-test` for key mutations (cut wire, strike, explode, win).
 - **Effect in Convex** — plain Convex handlers with `v` validators call into `packages/rules` (`Effect.runSync`), mapping tagged errors to `ConvexError` or strikes. No Confect. Keep Effect logging/clock reads out of queries so they stay cacheable.
-- Hosting: static Vite build on a static host + Convex Cloud.
+- Hosting: Vercel serves the static Vite build; its build command deploys Convex with `CONVEX_DEPLOY_KEY` (see README).
 
 ## Data model (sketch)
 
 ```
-rooms     code, status: lobby|playing|paused|won|lost, seed, difficulty,
-          endsAt, remainingMs (when paused), strikes, explodeJobId
+rooms     code, hostSessionId, status: lobby|playing|paused|won|lost, difficulty, seed,
+          endsAt, pausedAt (when paused), strikes, explodeJobId (when playing)
 seats     roomId, role, sessionId, name, ready
 modules   roomId, index, kind, solved, progress (cuts, presses, valve since + hold/release/reset events)
 pings     roomId, fromRole, ping: module|wire|key|manual target ref or emote (deleted 5 s after it is sent)
@@ -54,8 +56,9 @@ presence  @convex-dev/presence component
 
 - **Hidden info:** server-filtered views. `match.view` resolves the caller's seat and returns only `viewFor(bomb, role)`. The full bomb is regenerated from the seed server-side and never sent.
 - **Timer:** `start` sets `endsAt` and `scheduler.runAt(endsAt, explode)`; clients render the countdown locally; `explode` no-ops unless still playing.
-- **Pause:** presence detects a drop → cancel the explode job, store `remainingMs`; resume reschedules.
-- **Valve:** pressure is a pure function of (seed, start, hold/release/reset events) in `packages/rules`. Queries return the events and gauge parameters, never a current pressure. The Scanner animates it in `useFrame` with a server-clock offset (lowest-RTT of 5 calls to the `serverTime` mutation). `holdValve` and `releaseValve` stamp server time on arrival; the release recomputes the pressure and solves or strikes. Tolerance: the band plus 250 ms of venting either side. Hold and release are both delayed by the trip to the server, so steady latency cancels out (left over: rise × latency, about 0.02 points at 150 ms); the window covers the Scanner's call and the Operator's reaction. An untended valve bursts at 100: `scheduleBurst` schedules `burstValve` after every change, and the job recomputes, so a stale one does nothing.
+- **Presence:** the web app's own heartbeat hook (not the component's `usePresence`, which disconnects hidden tabs) beats every 10 s whatever the tab's visibility; a hidden tab reports a 30 s interval, so its 75 s timeout outlasts browsers' one-a-minute timers for long-hidden tabs. `pagehide` sends the disconnect beacon.
+- **Pause:** a client that sees a seat go offline mid-match calls `reportAbsence`; the server checks presence and schedules `pauseIfAbsent` 5 s later, so a reload never pauses. It pauses if the seat is still empty: cancel the explode job, seal a held valve where its needle is (a bare release, no strike), store `pausedAt`. Operator actions fail with `MATCH_PAUSED`; emotes and the Analyst's manual pings still work, while the overlay hides the bomb from pings. The returning player's heartbeat, or `takeOverSeat` by a spectator, resumes once every seat is back: `endsAt` and the valve's history move on by the wait, and the explode and burst jobs are rescheduled. Clients freeze the clocks and the gauge at `pausedAt`.
+- **Valve:** pressure is a pure function of (seed, start, hold/release/reset events) in `packages/rules`. Queries return the events and gauge parameters, never a current pressure. The Scanner animates it in `useFrame` with a server-clock offset (lowest-RTT of 5 calls to the `serverTime` mutation). `holdValve` and `releaseValve` stamp server time on arrival; the release recomputes the pressure and solves or strikes. Tolerance: the band plus 250 ms of venting either side. Hold and release are both delayed by the trip to the server, so steady latency cancels out (left over: rise × latency, about 0.02 points at 150 ms); the window covers the Scanner's call and the Operator's reaction. An untended valve bursts at 100: `scheduleBurst` schedules `burstValve` after every change, and the job recomputes, so a stale one does nothing. `match.view` carries `bursts` (resets with no release just before them; a count, so a pause's shift leaves it alone), and every role shows a notice when it goes up.
 - **Voice:** 3-way P2P WebRTC mesh between seated players, from the lobby on; signaling via the `signals` table (filtered by recipient, deleted after read). Perfect negotiation: the later seat in operator, analyst, scanner order is polite. Each payload names the sending and receiving link (an id that outlives the RTCPeerConnections a link replaces), so a reloaded player's fresh offer restarts the link and leftovers for an old link are dropped. A link that hasn't connected after 8 s (doubling per retry, up to about a minute) starts over with a new id, and an impolite side whose own offer went unanswered for 4 s takes the other's; signals expire after 60 s, and past 40 unread per sender the oldest go. `voice.iceServers` (seated players only) mints Cloudflare TURN credentials when `CLOUDFLARE_TURN_KEY_ID` and `CLOUDFLARE_TURN_API_TOKEN` are set, else public STUN (the deployment runs STUN-only for now, so players behind symmetric NATs may not connect). Open mic with mute (M), echo cancellation, noise suppression and auto gain; a denied mic leaves the player listening. Each link also opens an unordered, no-retransmit data channel (negotiated id 0) carrying `{kind, seq, at, …}` messages; M7 sends heartbeats with the sender's mic state (live, muted or off), so teammates see who is muted or listening only; the deferred M8 would add motion.
 - **Pings:** the Operator and Scanner point at a wire, key or module (right-click, or the Ping button then a click); the Analyst points at a manual section. A ping stores a target ref only, so it can't leak colors or tags. Quick emotes from a wheel. Both show as toasts in the sender's color, last 5 s, and a seat may have 3 live at once.
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Option, Schema } from "effect"
 import { Bomb, Difficulty, generateBomb } from "./bomb"
+import { solveKeypad } from "./keypad"
 import { COLORS, solveWires, type Wire } from "./wires"
 
 const SEEDS = Array.from({ length: 2000 }, (_, i) => (i * 2_654_435_761) >>> 0)
@@ -162,6 +163,33 @@ describe("generateBomb", () => {
       expect(wires.length).toBeGreaterThanOrEqual(3)
       expect(wires.length).toBeLessThanOrEqual(6)
       expect(new Set(wires.map((wire) => wire.tag.digit)).size).toBe(wires.length)
+    }
+  })
+})
+
+describe("difficulty presets", () => {
+  const mean = (values: ReadonlyArray<number>) => values.reduce((sum, value) => sum + value, 0) / values.length
+  const measure = (difficulty: Difficulty) => {
+    const bombs = SEEDS.map((seed) => generateBomb(seed, difficulty))
+    return {
+      wires: mean(bombs.map((bomb) => bomb.modules[0].wires.length)),
+      // A dud is a key from another ring, which the press order skips.
+      duds: mean(
+        bombs.map((bomb) => {
+          const { keys } = bomb.modules[1]
+          return keys.length - Option.getOrElse(solveKeypad(bomb.edgework.serial, keys), () => keys).length
+        }),
+      ),
+      peaks: mean(bombs.map((bomb) => bomb.modules[2].waveform.peaks)),
+      vent: mean(bombs.map((bomb) => bomb.modules[3].gauge.vent)),
+    }
+  }
+
+  it("make every module harder from easy to normal to hard", () => {
+    const [easy, normal, hard] = DIFFICULTIES.map(measure)
+    for (const key of ["wires", "duds", "peaks", "vent"] as const) {
+      expect(normal?.[key]).toBeGreaterThan(easy?.[key] ?? Infinity)
+      expect(hard?.[key]).toBeGreaterThan(normal?.[key] ?? Infinity)
     }
   })
 })

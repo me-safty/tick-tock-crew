@@ -2,7 +2,7 @@ import { Billboard, RoundedBox, useCursor } from "@react-three/drei"
 import { type ThreeEvent, useFrame } from "@react-three/fiber"
 import type { COLORS } from "@tick-tock-crew/rules"
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react"
-import { CatmullRomCurve3, type Group, MathUtils, TubeGeometry, Vector3 } from "three"
+import { BackSide, CatmullRomCurve3, type Group, MathUtils, TubeGeometry, Vector3 } from "three"
 import type { ViewOf } from "../roles"
 import { MONO_FONT, useDrawnTexture } from "./labels"
 import { type Rect, slotRect, wireLayout } from "./layout"
@@ -23,6 +23,11 @@ export const COLOR_HEX = {
 } as const satisfies Record<(typeof COLORS)[number], string>
 
 const WIRE_RADIUS = 0.011
+/**
+ * How much wider than its wire the hover rim is. A wire is far thinner than a key or a wheel, so a screen-space
+ * outline either vanishes or spills onto the next wire; this rim stays in the wire's own lane on six wires.
+ */
+const HALO_SCALE = 2
 
 export function OperatorWires({
   index,
@@ -59,7 +64,7 @@ export function OperatorWires({
           <group key={i}>
             <SlotNumber number={i + 1} x={-rect.width / 2 + 0.035} y={y} />
             <Strand y={y} span={span} sag={sagOf(i)} cut={cut} highlighted={highlighted} solid>
-              <Toon color={COLOR_HEX[wire.color]} emissive={highlighted ? HOVER : "#000000"} emissiveIntensity={0.35} />
+              <Toon color={COLOR_HEX[wire.color]} emissive={highlighted ? HOVER : "#000000"} emissiveIntensity={0.3} />
             </Strand>
             {!cut && (
               <mesh
@@ -162,6 +167,8 @@ function Strand({
   const progress = useRef(cut ? 1 : 0)
   const { geometry, tip } = useMemo(() => halfTube({ halfSpan: span / 2, sag, radius }), [span, sag, radius])
   useEffect(() => () => geometry.dispose(), [geometry])
+  const halo = useMemo(() => halfTube({ halfSpan: span / 2, sag, radius: radius * HALO_SCALE }).geometry, [span, sag, radius])
+  useEffect(() => () => halo.dispose(), [halo])
   useFrame((_, delta) => {
     progress.current = MathUtils.damp(progress.current, cut ? 1 : 0, 8, delta)
     halves.current.forEach((half, i) => {
@@ -190,8 +197,14 @@ function Strand({
     >
       <mesh geometry={geometry}>
         {children}
-        {solid && (highlighted ? <Ink thickness={0.009} color={HOVER} /> : <Ink thickness={0.003} />)}
+        {solid && <Ink thickness={0.003} />}
       </mesh>
+      {solid && highlighted && (
+        // Only the far side of a wider tube shows, as a solid amber rim of a set width around the wire.
+        <mesh geometry={halo}>
+          <meshBasicMaterial color={HOVER} side={BackSide} toneMapped={false} />
+        </mesh>
+      )}
       {cut && solid && (
         <mesh position={tip}>
           <sphereGeometry args={[radius * 0.8, 10, 8]} />
