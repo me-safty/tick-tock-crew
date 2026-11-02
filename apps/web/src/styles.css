@@ -485,3 +485,50 @@ select:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .crew-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .crew-actions .button { padding: 6px 10px; font-size: 0.85rem; }
 .crew-actions .mic-controls p { font-size: 0.8rem; }
+
+/* Pings and emotes */
+.pin-icon { width: 1em; height: 1em; flex: none; vertical-align: -0.12em; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linejoin: round; }
+.button.on { color: #1a1204; background: var(--accent, var(--amber)); border-color: var(--accent, var(--amber)); }
+.button.on:hover:not(:disabled) { background: var(--accent, var(--amber)); filter: brightness(1.1); }
+.match.pinging .scene { cursor: crosshair; }
+
+.callouts {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  translate: -50% 0;
+  width: max-content;
+  max-width: min(440px, calc(100% - 40px));
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+}
+.callout {
+  --accent: var(--muted);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgb(20 22 28 / 0.88);
+  border: 1px solid var(--accent);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+}
+.callout.operator { --accent: var(--operator); }
+.callout.analyst { --accent: var(--analyst); }
+.callout.scanner { --accent: var(--scanner); }
+.callout-name { color: var(--accent); font-weight: 700; }
+.callout.emote span { font-weight: 700; font-size: 1.05rem; }
+@keyframes callout-in { from { opacity: 0; translate: 0 -8px; } }
+@media (prefers-reduced-motion: no-preference) {
+  .callout { animation: callout-in 180ms ease-out; }
+}
+
+.manual .module-title .ping-section { margin-inline-start: auto; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 0.82rem; }
+.manual-sheet .ping-section[aria-pressed="true"] { color: #062430; background: var(--analyst); border-color: #2a9cc0; }
+.manual.pinged { margin-inline: -12px; padding-inline: 12px; padding-bottom: 12px; border-radius: 10px; box-shadow: inset 0 0 0 3px var(--analyst); background: rgb(76 195 230 / 0.12); }
+

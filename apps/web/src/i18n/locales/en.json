@@ -220,6 +220,25 @@
       "listening": "Listening only"
     }
   },
+  "ping": {
+    "mode": "Ping",
+    "hint": "Click a part of the bomb to point your crew at it · Right-click points any time · Esc cancels",
+    "point": "Point",
+    "pointSection": "Point the crew at {{module}}",
+    "module": "Points at the {{module}}",
+    "wire": "Points at wire {{n}} · {{module}}",
+    "key": "Points at key {{n}} · {{module}}",
+    "manual": "Points at the manual: {{module}}"
+  },
+  "emotes": {
+    "open": "Quick call",
+    "yes": "Yes!",
+    "no": "No!",
+    "wait": "Wait!",
+    "hurry": "Hurry!",
+    "repeat": "Say again?",
+    "nice": "Nice!"
+  },
   "errors": {
     "ROOM_NOT_FOUND": "Room not found",
     "MATCH_ALREADY_STARTED": "The match has already started",

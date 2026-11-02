@@ -3,13 +3,25 @@ import { useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import { GLYPH_BOX, GLYPH_STROKE, glyphPath } from "./glyphs"
 import { intlLocale, useLanguage } from "./i18n"
+import type { ManualSection } from "./pings"
 import type { ViewOf } from "./roles"
 import { FULL_HEIGHT, tracePath } from "./waveform"
 
 type Manual = ViewOf<"analyst">["manual"]
 type ManualCell = Extract<Manual[number]["blocks"][number], { kind: "table" }>["rows"][number][number]
 
-export function ManualSheet({ manual, onClose }: { readonly manual: Manual; readonly onClose: () => void }) {
+export function ManualSheet({
+  manual,
+  pinged,
+  onPing,
+  onClose,
+}: {
+  readonly manual: Manual
+  /** Sections the Analyst is pointing the crew at. */
+  readonly pinged: ReadonlySet<ManualSection>
+  readonly onPing: (section: ManualSection) => void
+  readonly onClose: () => void
+}) {
   const { t } = useTranslation()
   useEffect(() => {
     const close = (event: KeyboardEvent) => {
@@ -32,8 +44,19 @@ export function ManualSheet({ manual, onClose }: { readonly manual: Manual; read
         </button>
       </header>
       {manual.map((section) => (
-        <section key={section.title} className="module manual">
-          <h3 className="module-title">{t(`manual.${section.title}`)}</h3>
+        <section key={section.title} className={`module manual${pinged.has(section.module) ? " pinged" : ""}`}>
+          <h3 className="module-title">
+            {t(`manual.${section.title}`)}
+            <button
+              type="button"
+              className="button ping-section"
+              aria-pressed={pinged.has(section.module)}
+              aria-label={t("ping.pointSection", { module: t(`manual.${section.title}`) })}
+              onClick={() => onPing(section.module)}
+            >
+              <PinIcon /> {t("ping.point")}
+            </button>
+          </h3>
           {section.blocks.map((block, i) =>
             block.kind === "text" ? (
               <p key={i}>{t(`manual.${block.text}`)}</p>
@@ -122,6 +145,15 @@ function WaveIcon({ waveform }: { readonly waveform: Waveform }) {
       <path className="wave-grid" d={`${line(FULL_HEIGHT)} ${line(0)}`} />
       <path className="wave-grid dashed" d={line(FULL_HEIGHT / 2)} />
       <path className="wave-trace" d={tracePath(waveform, WAVE_BOX)} />
+    </svg>
+  )
+}
+
+export function PinIcon() {
+  return (
+    <svg className="pin-icon" viewBox="0 0 24 24" aria-hidden>
+      <path d="M12 22s-7-7.2-7-12a7 7 0 0 1 14 0c0 4.8-7 12-7 12z" />
+      <circle cx="12" cy="10" r="2.6" />
     </svg>
   )
 }

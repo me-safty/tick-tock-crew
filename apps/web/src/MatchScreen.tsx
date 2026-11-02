@@ -4,11 +4,13 @@ import { useMutation, useQuery } from "convex/react"
 import { lazy, type RefObject, Suspense, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { formatClock, secondsLeft, URGENT_SECONDS } from "./clock"
+import { Callouts } from "./Callouts"
 import { CrewBar } from "./CrewBar"
 import { useMutationError } from "./errors"
 import { sessionId } from "./guest"
 import { LanguageSwitch } from "./i18n/LanguageSwitch"
-import { ManualSheet } from "./ManualSheet"
+import { ManualSheet, PinIcon } from "./ManualSheet"
+import { bombPings, pingedSections, usePings } from "./pings"
 import type { Lobby, Match, OperatorAction, RoleView, ViewOf } from "./roles"
 import { navigate } from "./router"
 import type { DialControl } from "./scene/Dial"
@@ -55,12 +57,23 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
     onRelease: () => void operator.act({ kind: "release", module: valveModule }),
   })
   const clockOffset = useServerClockOffset(role === "scanner")
+  const pings = usePings(code)
+  const [pinging, setPinging] = useState(false)
+  const canPingBomb = (role === "operator" || role === "scanner") && !ended
+  useEffect(() => {
+    if (!pinging) return
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPinging(false)
+    }
+    window.addEventListener("keydown", cancel)
+    return () => window.removeEventListener("keydown", cancel)
+  }, [pinging])
   const sendFrequency = () => {
     if (operator.pending || !dialArmed) return
     void operator.act({ kind: "tune", module: dialModule, frequency: dial.control.frequency })
   }
   return (
-    <div className={`match ${role}`}>
+    <div className={`match ${role}${pinging && canPingBomb ? " pinging" : ""}`}>
       <Suspense fallback={<p className="scene-loading muted">{t("match.settingUp")}</p>}>
         <Scene
           match={match}
@@ -71,6 +84,12 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
           valve={valve.control}
           clockOffset={clockOffset}
           onOpenManual={() => setManualOpen(true)}
+          pings={bombPings(pings.pings)}
+          pinging={pinging && canPingBomb}
+          onPing={(target) => {
+            setPinging(false)
+            pings.point(target)
+          }}
         />
       </Suspense>
       {dialArmed && <DialInput dial={dial} onSend={sendFrequency} />}
@@ -83,7 +102,20 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
             <h1>{t(match.view ? `roles.${match.view.role}.title` : "roles.spectator")}</h1>
             {match.view?.role === "analyst" && <Defused view={match.view} />}
           </div>
-          {match.view && !ended && <CrewBar seats={lobby.seats} />}
+          {match.view && !ended && (
+            <CrewBar seats={lobby.seats}>
+              {canPingBomb && (
+                <button
+                  type="button"
+                  className={`button ping-toggle${pinging ? " on" : ""}`}
+                  aria-pressed={pinging}
+                  onClick={() => setPinging((current) => !current)}
+                >
+                  <PinIcon /> {t("ping.mode")}
+                </button>
+              )}
+            </CrewBar>
+          )}
         </div>
         <div className="hud-end">
           {!ended && (
@@ -102,16 +134,33 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
               {t(`match.feedback.${operator.feedback.text}`)}
             </p>
           )}
-          {operator.error && (
+          {(operator.error ?? pings.error) && (
             <p className="error" role="alert">
-              {operator.error}
+              {operator.error ?? pings.error}
             </p>
           )}
-          <Hint view={match.view} manualOpen={manualOpen} onOpenManual={() => setManualOpen(true)} />
+          {pinging && canPingBomb ? (
+            <p className="hint">{t("ping.hint")}</p>
+          ) : (
+            <Hint view={match.view} manualOpen={manualOpen} onOpenManual={() => setManualOpen(true)} />
+          )}
         </footer>
       )}
       {match.view?.role === "analyst" && manualOpen && !ended && (
-        <ManualSheet manual={match.view.manual} onClose={() => setManualOpen(false)} />
+        <ManualSheet
+          manual={match.view.manual}
+          pinged={pingedSections(pings.pings)}
+          onPing={(section) => pings.point({ kind: "manual", section })}
+          onClose={() => setManualOpen(false)}
+        />
+      )}
+      {!ended && match.view && (
+        <Callouts
+          pings={pings.pings}
+          me={match.view.role}
+          seats={lobby.seats}
+          modules={match.view.modules.map((module) => module.kind)}
+        />
       )}
       {finale && <div className={`finale-flash ${match.status}`} aria-hidden />}
       {ended && !finale && <MatchOver match={match} />}
