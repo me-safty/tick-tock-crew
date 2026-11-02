@@ -11,6 +11,7 @@ import {
   MANUAL_TEXT,
   MARKS,
   type MatchState,
+  MODULE_KINDS,
   type MatchStatus,
   matchStatus,
   type Outcome,
@@ -26,7 +27,7 @@ import type { Doc } from "./_generated/dataModel"
 import { type AppError, appError } from "./errors"
 import { internalMutation, mutation, type MutationCtx, query, type QueryCtx } from "./_generated/server"
 import { findRoom, findSeat, getRoom } from "./rooms"
-import { valveEvent } from "./schema"
+import { literals, valveEvent } from "./schema"
 import { scheduleBurst } from "./valve"
 
 type MatchRoom = Exclude<Doc<"rooms">, { status: "lobby" }>
@@ -64,9 +65,6 @@ export const explode = internalMutation({
     return null
   },
 })
-
-const literals = <const T extends string>(values: readonly [T, T, ...T[]]) =>
-  v.union(...values.map((value) => v.literal(value)))
 
 const solved = v.boolean()
 const cut = v.boolean()
@@ -126,7 +124,7 @@ const roleView = v.union(
   v.object({
     role: v.literal("analyst"),
     modules: v.array(v.object({ kind: literals(["wires", "keypad", "dial", "valve"]), solved })),
-    manual: v.array(v.object({ title: manualText, blocks: v.array(manualBlock) })),
+    manual: v.array(v.object({ module: literals(MODULE_KINDS), title: manualText, blocks: v.array(manualBlock) })),
   }),
 )
 

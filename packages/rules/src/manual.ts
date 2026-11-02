@@ -66,5 +66,13 @@ export const ManualBlock = Schema.Union([
 ])
 export type ManualBlock = typeof ManualBlock.Type
 
-export const ManualSection = Schema.Struct({ title: ManualText, blocks: MutableArray(ManualBlock) })
+/** One section per module kind, in the order the bomb's slots hold them. */
+export const MODULE_KINDS = ["wires", "keypad", "dial", "valve"] as const
+
+/** Which module a manual section covers, so a ping can name the section without its contents. */
+export const ManualSection = Schema.Struct({
+  module: Schema.Literals(MODULE_KINDS),
+  title: ManualText,
+  blocks: MutableArray(ManualBlock),
+})
 export type ManualSection = typeof ManualSection.Type

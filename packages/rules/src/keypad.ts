@@ -95,6 +95,7 @@ export function generateKeypad(rng: Rng, { difficulty }: { readonly difficulty: 
 }
 
 export const KEYPAD_MANUAL: ManualSection = {
+  module: "keypad",
   title: "keypad.title",
   blocks: [
     { kind: "text", text: "keypad.intro" },

@@ -10,6 +10,7 @@
 
 import type * as errors from "../errors.js";
 import type * as match from "../match.js";
+import type * as pings from "../pings.js";
 import type * as presence from "../presence.js";
 import type * as rooms from "../rooms.js";
 import type * as valve from "../valve.js";
@@ -24,6 +25,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   errors: typeof errors;
   match: typeof match;
+  pings: typeof pings;
   presence: typeof presence;
   rooms: typeof rooms;
   valve: typeof valve;

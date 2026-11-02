@@ -218,6 +218,9 @@
     "FREQUENCY_OFF_DIAL": "That frequency isn't on the dial",
     "VALVE_NOT_HELD": "Nobody is holding the valve",
     "SIGNAL_INVALID": "That voice signal can't be sent",
+    "PING_NOT_ALLOWED": "Your role can't point at that",
+    "PING_TARGET_NOT_FOUND": "There's nothing there to point at",
+    "TOO_MANY_PINGS": "Slow down: wait a moment before the next ping",
     "NICKNAME_LENGTH": "Pick a nickname of 1 to {{max}} characters"
   }
 }

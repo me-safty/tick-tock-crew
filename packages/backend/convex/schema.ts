@@ -1,5 +1,9 @@
+import { EMOTES, MODULE_KINDS } from "@tick-tock-crew/rules"
 import { defineSchema, defineTable } from "convex/server"
 import { v } from "convex/values"
+
+export const literals = <const T extends string>(values: readonly [T, T, ...T[]]) =>
+  v.union(...values.map((value) => v.literal(value)))
 
 export const role = v.union(v.literal("operator"), v.literal("analyst"), v.literal("scanner"))
 
@@ -17,6 +21,18 @@ export const valveEvent = v.object({
 })
 
 export const signalKind = v.union(v.literal("offer"), v.literal("answer"), v.literal("ice"))
+
+/** What a ping points at: indices and module kinds only, never a color, tag or anything else a role might not see. */
+export const pingTarget = v.union(
+  v.object({ kind: v.literal("module"), module: v.number() }),
+  v.object({ kind: v.literal("wire"), module: v.number(), wire: v.number() }),
+  v.object({ kind: v.literal("key"), module: v.number(), key: v.number() }),
+  v.object({ kind: v.literal("manual"), section: literals(MODULE_KINDS) }),
+)
+
+export const emote = literals(EMOTES)
+
+export const ping = v.union(pingTarget, v.object({ kind: v.literal("emote"), emote }))
 
 export default defineSchema({
   rooms: defineTable(
@@ -55,4 +71,10 @@ export default defineSchema({
     kind: signalKind,
     payload: v.string(),
   }).index("by_room_and_to", ["roomId", "toRole"]),
+  // Each row is deleted by a scheduled job a few seconds after it is sent.
+  pings: defineTable({
+    roomId: v.id("rooms"),
+    fromRole: role,
+    ping,
+  }).index("by_room_and_role", ["roomId", "fromRole"]),
 })

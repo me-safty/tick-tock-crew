@@ -75,6 +75,7 @@ export function generateWires(
 }
 
 export const WIRES_MANUAL: ManualSection = {
+  module: "wires",
   title: "wires.title",
   blocks: [
     { kind: "text", text: "wires.intro" },

@@ -21,6 +21,9 @@ const PLAIN_CODES = [
   "FREQUENCY_OFF_DIAL",
   "VALVE_NOT_HELD",
   "SIGNAL_INVALID",
+  "PING_NOT_ALLOWED",
+  "PING_TARGET_NOT_FOUND",
+  "TOO_MANY_PINGS",
 ] as const
 
 /** What a rejected mutation carries in `ConvexError.data`. Clients translate the code; params fill in the message. */

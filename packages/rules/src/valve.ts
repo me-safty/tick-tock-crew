@@ -132,6 +132,7 @@ export function generateValve(rng: Rng, { difficulty }: { readonly difficulty: k
 }
 
 export const VALVE_MANUAL: ManualSection = {
+  module: "valve",
   title: "valve.title",
   blocks: [
     { kind: "text", text: "valve.intro" },
