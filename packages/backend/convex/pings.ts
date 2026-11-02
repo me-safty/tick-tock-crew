@@ -21,15 +21,16 @@ function checkTarget({ room, seat, target }: { room: Doc<"rooms">; seat: Seat; t
   if (room.status !== "playing") throw appError({ code: "MATCH_OVER" })
   if ((target.kind === "manual") !== (seat.role === "analyst")) throw appError({ code: "PING_NOT_ALLOWED" })
   if (target.kind === "manual") return
+  const index = (value: number) => Number.isInteger(value) && value >= 0
   const module = generateBomb(room.seed, room.difficulty).modules[target.module]
   const found = (() => {
     switch (target.kind) {
       case "module":
-        return module !== undefined
+        return index(target.module) && module !== undefined
       case "wire":
-        return module?.kind === "wires" && target.wire >= 0 && target.wire < module.wires.length
+        return module?.kind === "wires" && index(target.wire) && target.wire < module.wires.length
       case "key":
-        return module?.kind === "keypad" && target.key >= 0 && target.key < module.keys.length
+        return module?.kind === "keypad" && index(target.key) && target.key < module.keys.length
       default: {
         const _exhaustive: never = target
         return _exhaustive

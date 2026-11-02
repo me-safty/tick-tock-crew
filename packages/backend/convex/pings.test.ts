@@ -62,6 +62,7 @@ describe("point", () => {
     { kind: "wire", module: KEYPAD, wire: 0 },
     { kind: "key", module: KEYPAD, key: -1 },
     { kind: "key", module: WIRES, key: 0 },
+    { kind: "wire", module: WIRES, wire: 1.5 },
   ] as const)("rejects a target the bomb doesn't have: %o", async (target) => {
     const { t, code } = await startedMatch()
     await expect(t.mutation(api.pings.point, { code, sessionId: operator.sessionId, target })).rejects.toMatchObject({
