@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "convex/react"
 import { lazy, type RefObject, Suspense, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { formatClock, secondsLeft, URGENT_SECONDS } from "./clock"
+import { CrewBar } from "./CrewBar"
 import { useMutationError } from "./errors"
 import { sessionId } from "./guest"
 import { LanguageSwitch } from "./i18n/LanguageSwitch"
@@ -25,10 +26,11 @@ const FINALE_MS = 2600
 export function MatchScreen({ lobby }: { readonly lobby: Lobby }) {
   const match = useQuery(api.match.view, { code: lobby.code, sessionId })
   if (!match) return null
-  return <MatchInPlay code={lobby.code} match={match} />
+  return <MatchInPlay lobby={lobby} match={match} />
 }
 
-function MatchInPlay({ code, match }: { readonly code: string; readonly match: Match }) {
+function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: Match }) {
+  const { code } = lobby
   const { t } = useTranslation()
   // A room that was already over when it opened skips straight to the end screen.
   const [sawPlaying] = useState(match.status === "playing")
@@ -75,10 +77,13 @@ function MatchInPlay({ code, match }: { readonly code: string; readonly match: M
       {valve.control.armed && <ValveInput valve={valve} />}
       {role === "scanner" && <div className="xray-lens" data-label={t("match.xray")} aria-hidden />}
       <header className="hud">
-        <div className="hud-role">
-          <span className="eyebrow">{t("match.room", { code })}</span>
-          <h1>{t(match.view ? `roles.${match.view.role}.title` : "roles.spectator")}</h1>
-          {match.view?.role === "analyst" && <Defused view={match.view} />}
+        <div className="hud-start">
+          <div className="hud-role">
+            <span className="eyebrow">{t("match.room", { code })}</span>
+            <h1>{t(match.view ? `roles.${match.view.role}.title` : "roles.spectator")}</h1>
+            {match.view?.role === "analyst" && <Defused view={match.view} />}
+          </div>
+          {match.view && !ended && <CrewBar seats={lobby.seats} />}
         </div>
         <div className="hud-end">
           {!ended && (

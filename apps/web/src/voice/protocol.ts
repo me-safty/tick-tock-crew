@@ -14,10 +14,10 @@ const SdpPayload = Schema.Struct({ ...Ends, sdp: Schema.String })
 const IcePayload = Schema.Struct({
   ...Ends,
   candidate: Schema.Struct({
-    candidate: Schema.String,
-    sdpMid: Schema.optional(Schema.NullOr(Schema.String)),
-    sdpMLineIndex: Schema.optional(Schema.NullOr(Schema.Number)),
-    usernameFragment: Schema.optional(Schema.NullOr(Schema.String)),
+    candidate: Schema.optionalKey(Schema.String),
+    sdpMid: Schema.optionalKey(Schema.NullOr(Schema.String)),
+    sdpMLineIndex: Schema.optionalKey(Schema.NullOr(Schema.Number)),
+    usernameFragment: Schema.optionalKey(Schema.NullOr(Schema.String)),
   }),
 })
 

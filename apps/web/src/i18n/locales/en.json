@@ -198,6 +198,28 @@
       "strike": "Letting go outside the band is a strike. If the needle reaches 100, the valve bursts: also a strike. After either, the needle jumps back to where it started."
     }
   },
+  "voice": {
+    "title": "Voice chat",
+    "crew": "Crew",
+    "prompt": "Talk with your crew over your mic. Your browser will ask to use it.",
+    "enable": "Turn on mic",
+    "asking": "Allow the mic in your browser's prompt…",
+    "denied": "Mic blocked: you can still hear your crew. Allow the microphone in this site's settings, then try again.",
+    "unavailable": "No mic found: you can still hear your crew.",
+    "retry": "Try again",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "device": "Microphone",
+    "defaultDevice": "Default microphone",
+    "deviceN": "Microphone {{n}}",
+    "state": {
+      "speaking": "Speaking",
+      "idle": "Voice connected",
+      "connecting": "Connecting voice…",
+      "muted": "Muted",
+      "listening": "Listening only"
+    }
+  },
   "errors": {
     "ROOM_NOT_FOUND": "Room not found",
     "MATCH_ALREADY_STARTED": "The match has already started",

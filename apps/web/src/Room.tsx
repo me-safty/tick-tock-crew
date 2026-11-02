@@ -7,6 +7,7 @@ import { LobbyScreen } from "./LobbyScreen"
 import { MatchScreen } from "./MatchScreen"
 import type { Lobby } from "./roles"
 import { navigate } from "./router"
+import { VoiceProvider } from "./voice/VoiceProvider"
 
 export function Room({ code }: { readonly code: string }) {
   const { t } = useTranslation()
@@ -36,6 +37,14 @@ export function Room({ code }: { readonly code: string }) {
 
 function JoinedRoom({ lobby }: { readonly lobby: Lobby }) {
   usePresence(api.presence, lobby.code, sessionId)
+  return (
+    <VoiceProvider lobby={lobby}>
+      <RoomScreen lobby={lobby} />
+    </VoiceProvider>
+  )
+}
+
+function RoomScreen({ lobby }: { readonly lobby: Lobby }) {
   switch (lobby.status) {
     case "lobby":
       return <LobbyScreen lobby={lobby} />

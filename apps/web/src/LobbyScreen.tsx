@@ -8,6 +8,7 @@ import { intlLocale, useLanguage } from "./i18n"
 import { LanguageSwitch } from "./i18n/LanguageSwitch"
 import { preloadScene } from "./MatchScreen"
 import type { Lobby, Seat } from "./roles"
+import { MicControls, SpeakingIndicator } from "./voice/VoiceControls"
 
 export function LobbyScreen({ lobby }: { readonly lobby: Lobby }) {
   const { t } = useTranslation()
@@ -69,6 +70,15 @@ export function LobbyScreen({ lobby }: { readonly lobby: Lobby }) {
         ))}
       </ul>
 
+      {seated && (
+        <section className="voice-panel" aria-labelledby="voice-title">
+          <h2 id="voice-title" className="eyebrow">
+            {t("voice.title")}
+          </h2>
+          <MicControls />
+        </section>
+      )}
+
       <footer className="lobby-footer">
         {lobby.isHost && (
           <button
@@ -123,6 +133,7 @@ function SeatCard({ seat, seated, canClaim, onClaim, onLeave, onReady }: SeatCar
           <p className="player">
             <span className={`dot ${player.online ? "on" : "off"}`} title={t(player.online ? "lobby.seat.online" : "lobby.seat.offline")} />
             <bdi>{player.name}</bdi>
+            <SpeakingIndicator role={seat.role} />
             {player.isYou && <span className="tag">{t("lobby.seat.you")}</span>}
             {player.isHost && <span className="tag">{t("lobby.seat.host")}</span>}
           </p>
