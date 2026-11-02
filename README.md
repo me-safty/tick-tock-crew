@@ -27,7 +27,7 @@ The web app is hosted on Vercel and the backend on Convex Cloud. Every push to `
 | Vercel, Production only | `CONVEX_DEPLOY_KEY` | A production deploy key from the Convex dashboard (production deployment → Settings → Generate Production Deploy Key, with `deployment:deploy`). |
 | Convex production deployment (optional) | `CLOUDFLARE_TURN_KEY_ID`, `CLOUDFLARE_TURN_API_TOKEN` | Cloudflare TURN credentials for voice. Without them voice uses public STUN only, so players behind strict NATs may not connect. Set them with `bunx convex env set --prod <NAME> <value>` in `packages/backend`. |
 
-The build stops with an error when `CONVEX_DEPLOY_KEY` is missing, and when a preview build has a production key, so a preview can never point at the dev deployment or push a branch to production. Preview builds are skipped (`ignoreCommand` in `vercel.json`), so only `main` deploys. To enable them, remove that line and give Vercel's Preview environment a Convex preview deploy key.
+The build stops with an error when `CONVEX_DEPLOY_KEY` is missing, and when a preview build has a production key, so a preview can never point at the dev deployment or push a branch to production. Only `main` deploys (`git.deploymentEnabled` in `vercel.json`); other branches get no Vercel build. To enable previews, allow those branches there and give Vercel's Preview environment a Convex preview deploy key.
 
 To redeploy, push to `main`, or use Redeploy on the latest deployment in Vercel; both run the same build. To push only the Convex functions by hand, run `CONVEX_DEPLOY_KEY=<production key> bunx convex deploy` in `packages/backend`.
 
