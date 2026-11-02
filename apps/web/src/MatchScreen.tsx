@@ -45,7 +45,7 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
   const operator = useOperator(code)
   const dial = useDial()
   useAbsenceReport({ lobby, playing: match.status === "playing" })
-  const burst = useBurstNotice(match.lastBurstAt)
+  const burst = useBurstNotice(match.bursts)
   useEffect(() => {
     if (!ended) return
     const id = setTimeout(() => setFinaleDone(true), FINALE_MS)
@@ -185,15 +185,15 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
 const FEEDBACK_MS = 4000
 
 /** Whether to show that the valve just burst. Bursts from before this screen opened aren't news. */
-function useBurstNotice(lastBurstAt: number | null) {
-  const [seen] = useState(lastBurstAt)
+function useBurstNotice(bursts: number) {
+  const [seen] = useState(bursts)
   const [shown, setShown] = useState(false)
   useEffect(() => {
-    if (lastBurstAt === null || lastBurstAt === seen) return
+    if (bursts === seen) return
     setShown(true)
     const id = setTimeout(() => setShown(false), FEEDBACK_MS)
     return () => clearTimeout(id)
-  }, [lastBurstAt, seen])
+  }, [bursts, seen])
   return shown
 }
 

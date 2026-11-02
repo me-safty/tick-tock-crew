@@ -17,7 +17,7 @@ import {
   shiftState,
   tuneDial,
 } from "./match"
-import { burstAt, isHeld, lastBurstAt, pressureAt, RELEASE_GRACE_MS, solveValve, type ValveProgress } from "./valve"
+import { burstAt, burstCount, isHeld, pressureAt, RELEASE_GRACE_MS, solveValve, type ValveProgress } from "./valve"
 import { solveWires } from "./wires"
 
 const bomb = generateBomb(7, "normal")
@@ -305,15 +305,17 @@ describe("pause", () => {
   )
 })
 
-describe("lastBurstAt", () => {
-  it.effect("finds a burst, but not a strike on release", () =>
+describe("burstCount", () => {
+  it.effect("counts bursts, not strikes on release, and a pause doesn't change it", () =>
     Effect.gen(function* () {
       const due = burstAt(valveModule.gauge, { since: STARTED, events: [] }) ?? 0
       const burst = yield* burstValve(bomb, fresh(), { module: VALVE, at: due })
-      expect(lastBurstAt(valveProgress(burst.state))).toBe(due)
+      expect(burstCount(valveProgress(burst.state))).toBe(1)
+      const resumed = shiftState(pauseState(bomb, burst.state, { at: due + 1_000 }), { by: 30_000 })
+      expect(burstCount(valveProgress(resumed))).toBe(1)
       const missed = yield* vent(fresh(), ventedTo(band.low) + RELEASE_GRACE_MS + 1)
-      expect(lastBurstAt(valveProgress(missed.state))).toBeNull()
-      expect(lastBurstAt(valveProgress(fresh()))).toBeNull()
+      expect(burstCount(valveProgress(missed.state))).toBe(0)
+      expect(burstCount(valveProgress(fresh()))).toBe(0)
     }),
   )
 })

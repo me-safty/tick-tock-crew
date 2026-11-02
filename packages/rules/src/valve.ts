@@ -119,17 +119,14 @@ export const shiftProgress = ({ since, events }: ValveProgress, by: number): Val
 })
 
 /**
- * When the valve last burst, or null. A strike on release records a release and a reset together; a reset
- * without a release just before it is a burst.
+ * How many times the valve has burst. A strike on release records a release and a reset together; a reset without
+ * a release just before it is a burst. A count, unlike a time, stays put when a pause moves the history on.
  */
-export function lastBurstAt({ events }: ValveProgress): number | null {
-  for (let i = events.length - 1; i >= 0; i--) {
-    const event = events[i]
+export const burstCount = ({ events }: ValveProgress) =>
+  events.filter((event, i) => {
     const before = events[i - 1]
-    if (event?.kind === "reset" && !(before?.kind === "release" && before.at === event.at)) return event.at
-  }
-  return null
-}
+    return event.kind === "reset" && !(before?.kind === "release" && before.at === event.at)
+  }).length
 
 const RATES = {
   easy: { rise: 0.1, vent: [4, 5] },

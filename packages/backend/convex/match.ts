@@ -1,6 +1,7 @@
 import {
   type ActionError,
   type Bomb,
+  burstCount,
   burstValve as burstValveRule,
   COLORS,
   cutWire as cutWireRule,
@@ -8,7 +9,6 @@ import {
   generateBomb,
   HANDLES,
   holdValve as holdValveRule,
-  lastBurstAt,
   MANUAL_TEXT,
   MARKS,
   type MatchState,
@@ -135,8 +135,8 @@ const roleView = v.union(
 const matchView = {
   endsAt: v.number(),
   strikes: v.number(),
-  /** When the valve last burst, so every role can say why a strike landed; null if it never has. */
-  lastBurstAt: v.union(v.null(), v.number()),
+  /** How often the valve has burst, so every role can say why a strike landed. */
+  bursts: v.number(),
   view: v.union(v.null(), roleView),
 }
 
@@ -157,7 +157,7 @@ export const view = query({
     const shared = {
       endsAt: room.endsAt,
       strikes: room.strikes,
-      lastBurstAt: valve?.kind === "valve" ? lastBurstAt(valve.progress) : null,
+      bursts: valve?.kind === "valve" ? burstCount(valve.progress) : 0,
       view: seat ? viewFor(bomb, state, seat.role) : null,
     }
     return room.status === "paused" ? { ...shared, status: room.status, pausedAt: room.pausedAt } : { ...shared, status: room.status }

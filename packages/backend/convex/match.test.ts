@@ -214,17 +214,14 @@ describe("pressure valve", () => {
     vi.advanceTimersByTime(firstBurst - Date.now() - 1)
     await t.finishInProgressScheduledFunctions()
     expect(await getRoom(t)).toMatchObject({ strikes: 0 })
-    expect(await t.query(api.match.view, { code, sessionId: analyst.sessionId })).toMatchObject({ lastBurstAt: null })
+    expect(await t.query(api.match.view, { code, sessionId: analyst.sessionId })).toMatchObject({ bursts: 0 })
     vi.advanceTimersByTime(1)
     await t.finishInProgressScheduledFunctions()
     expect(await getRoom(t)).toMatchObject({ status: "playing", strikes: 1 })
-    const valve = await moduleDoc(t, VALVE)
-    expect(valve).toMatchObject({ progress: { events: [{ kind: "reset" }] } })
+    expect(await moduleDoc(t, VALVE)).toMatchObject({ progress: { events: [{ kind: "reset" }] } })
     // Every role learns why the strike landed, not only the Scanner who sees the gauge.
     for (const { sessionId } of PLAYERS) {
-      expect(await t.query(api.match.view, { code, sessionId })).toMatchObject({
-        lastBurstAt: valve?.kind === "valve" ? valve.progress.events[0]?.at : -1,
-      })
+      expect(await t.query(api.match.view, { code, sessionId })).toMatchObject({ bursts: 1 })
     }
 
     await hold(t, code)

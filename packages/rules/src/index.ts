@@ -23,11 +23,11 @@ export {
 } from "./match"
 export {
   burstAt,
+  burstCount,
   COILS,
   type Gauge,
   HANDLES,
   isHeld,
-  lastBurstAt,
   MAX_PRESSURE,
   pressureAt,
   solveValve,
