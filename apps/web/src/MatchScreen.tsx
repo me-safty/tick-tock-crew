@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next"
 import { formatClock, secondsLeft, URGENT_SECONDS } from "./clock"
 import { Callouts } from "./Callouts"
 import { CrewBar } from "./CrewBar"
+import { EmoteWheel } from "./EmoteWheel"
 import { useMutationError } from "./errors"
 import { sessionId } from "./guest"
 import { LanguageSwitch } from "./i18n/LanguageSwitch"
@@ -114,6 +115,7 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
                   <PinIcon /> {t("ping.mode")}
                 </button>
               )}
+              <EmoteWheel onEmote={pings.emote} />
             </CrewBar>
           )}
         </div>
