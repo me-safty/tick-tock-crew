@@ -25,7 +25,7 @@ export function ManualSheet({
   const { t } = useTranslation()
   useEffect(() => {
     const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose()
+      if (event.key === "Escape" && !event.defaultPrevented) onClose()
     }
     window.addEventListener("keydown", close)
     return () => window.removeEventListener("keydown", close)
@@ -50,11 +50,13 @@ export function ManualSheet({
             <button
               type="button"
               className="button ping-section"
-              aria-pressed={pinged.has(section.module)}
-              aria-label={t("ping.pointSection", { module: t(`manual.${section.title}`) })}
+              disabled={pinged.has(section.module)}
+              aria-label={t(pinged.has(section.module) ? "ping.pointed" : "ping.pointSection", {
+                module: t(`manual.${section.title}`),
+              })}
               onClick={() => onPing(section.module)}
             >
-              <PinIcon /> {t("ping.point")}
+              <PinIcon /> {t(pinged.has(section.module) ? "ping.pointedShort" : "ping.point")}
             </button>
           </h3>
           {section.blocks.map((block, i) =>

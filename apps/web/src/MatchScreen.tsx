@@ -64,7 +64,7 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
   useEffect(() => {
     if (!pinging) return
     const cancel = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setPinging(false)
+      if (event.key === "Escape" && !event.defaultPrevented) setPinging(false)
     }
     window.addEventListener("keydown", cancel)
     return () => window.removeEventListener("keydown", cancel)

@@ -53,11 +53,11 @@ export function MicControls({ compact = false }: { readonly compact?: boolean })
     case "unavailable":
       return (
         <div className="mic-controls">
-          <p className="muted" role="status">
+          <p className="muted" role="status" title={compact ? t(`voice.${mic.kind}`) : undefined}>
             {t(compact ? "voice.state.listening" : `voice.${mic.kind}`)}
           </p>
           <button type="button" className="button" onClick={enable}>
-            {t("voice.retry")}
+            {t("voice.retryMic")}
           </button>
         </div>
       )
@@ -67,7 +67,6 @@ export function MicControls({ compact = false }: { readonly compact?: boolean })
           <button
             type="button"
             className={`button mute${muted ? " on" : ""}`}
-            aria-pressed={muted}
             aria-keyshortcuts="M"
             onClick={toggleMute}
           >

@@ -14,7 +14,9 @@ export function CrewBar({ seats, children }: { readonly seats: ReadonlyArray<Sea
             player && (
               <li key={role} className={`crew-member ${role}`}>
                 <span className="crew-role">{t(`roles.${role}.title`)}</span>
-                <bdi className="crew-name">{player.name}</bdi>
+                <span className="crew-name">
+                  <bdi>{player.name}</bdi>
+                </span>
                 <SpeakingIndicator role={role} />
               </li>
             ),
