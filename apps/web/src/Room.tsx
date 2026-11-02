@@ -1,4 +1,3 @@
-import usePresence from "@convex-dev/presence/react"
 import { api } from "@tick-tock-crew/backend/api"
 import { useQuery } from "convex/react"
 import { useTranslation } from "react-i18next"
@@ -6,6 +5,7 @@ import { sessionId } from "./guest"
 import { LobbyScreen } from "./LobbyScreen"
 import { MatchScreen } from "./MatchScreen"
 import type { Lobby } from "./roles"
+import { useRoomPresence } from "./presence"
 import { navigate } from "./router"
 import { VoiceProvider } from "./voice/VoiceProvider"
 
@@ -36,7 +36,7 @@ export function Room({ code }: { readonly code: string }) {
 }
 
 function JoinedRoom({ lobby }: { readonly lobby: Lobby }) {
-  usePresence(api.presence, lobby.code, sessionId)
+  useRoomPresence(lobby.code)
   return (
     <VoiceProvider lobby={lobby}>
       <RoomScreen lobby={lobby} />
