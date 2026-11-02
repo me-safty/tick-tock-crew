@@ -165,7 +165,7 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
         />
       )}
       {finale && <div className={`finale-flash ${match.status}`} aria-hidden />}
-      {ended && !finale && <MatchOver match={match} />}
+      {ended && !finale && <MatchOver code={code} match={match} />}
     </div>
   )
 }
@@ -437,8 +437,10 @@ function Strikes({ strikes }: { readonly strikes: number }) {
   )
 }
 
-function MatchOver({ match }: { readonly match: Match }) {
+function MatchOver({ code, match }: { readonly code: string; readonly match: Match }) {
   const { t } = useTranslation()
+  const playAgain = useMutation(api.rooms.playAgain)
+  const { error, run } = useMutationError()
   const won = match.status === "won"
   const title = match.view ? (won ? "youWon" : "youLost") : won ? "crewWon" : "crewLost"
   const reason = won ? "wonReason" : match.strikes >= MAX_STRIKES ? "strikesReason" : "timeReason"
@@ -449,9 +451,21 @@ function MatchOver({ match }: { readonly match: Match }) {
         <h1>{t(`match.over.${title}`)}</h1>
         <p>{t(`match.over.${reason}`)}</p>
         <p className="muted">{t("match.over.strikesSummary", { strikes: match.strikes, max: MAX_STRIKES })}</p>
-        <button type="button" className="button primary" onClick={() => navigate("/")}>
-          {t("common.backHome")}
-        </button>
+        <div className="match-over-actions">
+          {match.view && (
+            <button type="button" className="button primary" onClick={() => void run(playAgain({ code, sessionId }))}>
+              {t("match.over.playAgain")}
+            </button>
+          )}
+          <button type="button" className={match.view ? "button" : "button primary"} onClick={() => navigate("/")}>
+            {t("common.backHome")}
+          </button>
+        </div>
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
       </section>
     </main>
   )

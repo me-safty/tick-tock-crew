@@ -367,6 +367,7 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
 }
 .match-over { text-align: center; justify-items: center; border-top: 4px solid var(--red); }
 .match-over.won { border-top-color: var(--green); }
+.match-over-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 .match-over.won .eyebrow { color: var(--green); }
 .match-over.lost .eyebrow { color: var(--red); }
 
@@ -394,6 +395,44 @@ h1:lang(ar), .eyebrow:lang(ar), .divider:lang(ar), .tag:lang(ar), .crew-role:lan
 .player.empty:lang(ar) { font-style: normal; }
 
 /* Voice */
+.difficulty-panel {
+  width: min(960px, 100%);
+  box-sizing: border-box;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+  padding: 14px 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.difficulty-panel legend { float: inline-start; margin-bottom: 2px; padding: 0; }
+.difficulty-panel p { margin: 0; }
+.difficulty-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.difficulty-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  position: relative;
+  background: #262a35;
+  cursor: pointer;
+}
+@media (max-width: 520px) {
+  .difficulty-option { flex-direction: column; gap: 2px; padding: 8px; }
+}
+.difficulty-option:has(input:focus-visible) { outline: 2px solid var(--amber); outline-offset: 2px; }
+.difficulty-option.on { border-color: var(--amber); background: rgb(245 165 36 / 0.14); box-shadow: inset 0 0 0 1px var(--amber); }
+.difficulty-option input { position: absolute; inset: 0; margin: 0; opacity: 0; pointer-events: none; }
+.difficulty-panel:disabled .difficulty-option { cursor: default; }
+.difficulty-panel:disabled .difficulty-option:not(.on) { opacity: 0.55; }
+.difficulty-name { font-weight: 600; }
+.difficulty-clock { font-family: var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.difficulty-option.on .difficulty-clock { color: var(--amber); }
+
 .voice-panel {
   width: min(960px, 100%);
   box-sizing: border-box;

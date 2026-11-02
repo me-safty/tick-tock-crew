@@ -69,6 +69,19 @@
       "open": "Open seat",
       "switchHere": "Switch here",
       "claim": "Claim seat"
+    },
+    "difficulty": {
+      "title": "Difficulty",
+      "easy": "Easy",
+      "normal": "Normal",
+      "hard": "Hard",
+      "blurb": {
+        "easy": "Fewer wires, a gentle dial and a slow valve.",
+        "normal": "The standard bomb.",
+        "hard": "More wires, a decoy key, busier waves and a fast valve."
+      },
+      "hostPicks": "The host picks the difficulty.",
+      "clock": "{{clock}} on the clock"
     }
   },
   "match": {
@@ -126,7 +139,8 @@
       "wonReason": "Every module is defused. Nice work, crew.",
       "strikesReason": "Three strikes. The bomb went off.",
       "timeReason": "The timer ran out. The bomb went off.",
-      "strikesSummary": "Strikes: {{strikes}} of {{max}}"
+      "strikesSummary": "Strikes: {{strikes}} of {{max}}",
+      "playAgain": "Play again"
     }
   },
   "scene": {
