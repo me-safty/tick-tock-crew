@@ -59,7 +59,7 @@ describe("routeSignal", () => {
 
 describe("channel messages", () => {
   test("round-trip a heartbeat", () => {
-    const message = { kind: "heartbeat", seq: 3, at: 1_000 } as const
+    const message = { kind: "heartbeat", seq: 3, at: 1_000, mic: "muted" } as const
     expect(decodeMessage(encodeMessage(message))).toEqual(message)
   })
 

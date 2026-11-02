@@ -4,19 +4,19 @@ import { createContext, type ReactNode, useContext, useEffect, useMemo, useRef, 
 import { sessionId } from "../guest"
 import type { Lobby } from "../roles"
 import { PeerLink } from "./PeerLink"
-import { decodeSignal, encodeSignal, isPolite, type Role, routeSignal } from "./protocol"
+import { decodeSignal, encodeSignal, isPolite, type MicState, type Role, routeSignal } from "./protocol"
 import { useMicrophone } from "./useMicrophone"
 import { useSpeaking, type VoiceSource } from "./useSpeaking"
-
-// Used when the iceServers action can't be reached; peers on open networks still connect over it.
-const FALLBACK_ICE_SERVERS: RTCIceServer[] = [{ urls: ["stun:stun.cloudflare.com:3478"] }]
 
 type Voice = ReturnType<typeof useMicrophone> & {
   /** The caller's seat, or null when they hold none and so aren't in the call. */
   readonly me: Role | null
   readonly speaking: ReadonlySet<Role>
-  readonly links: ReadonlyMap<Role, RTCPeerConnectionState>
+  readonly links: ReadonlyMap<Role, PeerStatus>
 }
+
+/** A link's connection and what its player's mic is doing, as their heartbeats last said. */
+type PeerStatus = { readonly connection: RTCPeerConnectionState; readonly mic: MicState }
 
 const VoiceContext = createContext<Voice | null>(null)
 
@@ -33,8 +33,9 @@ export function VoiceProvider({ lobby, children }: { readonly lobby: Lobby; read
   // A new array on every lobby update would rebuild the links, so only a different set of seats makes a new one.
   const peerKey = others.join(",")
   const peers = useMemo(() => others, [peerKey])
-  const mic = useMicrophone()
-  const { streams, links } = useMesh({ code: lobby.code, me, peers, track: mic.track })
+  const mic = useMicrophone({ enabled: me !== null })
+  const micState: MicState = mic.track ? (mic.muted ? "muted" : "live") : "off"
+  const { streams, links } = useMesh({ code: lobby.code, me, peers, track: mic.track, mic: micState })
   const sources = useMemo(() => {
     const voices: VoiceSource[] = [...streams].map(([role, stream]) => ({ role, stream }))
     return me && mic.track ? [...voices, { role: me, stream: new MediaStream([mic.track]) }] : voices
@@ -59,7 +60,8 @@ function useIceServers({ code, seated }: { code: string; seated: boolean }) {
     let cancelled = false
     fetchIceServers({ code, sessionId }).then(
       (fetched) => !cancelled && setServers(fetched),
-      () => !cancelled && setServers(FALLBACK_ICE_SERVERS),
+      // Without the action, host candidates still connect players on the same network.
+      () => !cancelled && setServers([]),
     )
     return () => {
       cancelled = true
@@ -74,11 +76,13 @@ function useMesh({
   me,
   peers,
   track,
+  mic,
 }: {
   code: string
   me: Role | null
   peers: ReadonlyArray<Role>
   track: MediaStreamTrack | null
+  mic: MicState
 }) {
   const iceServers = useIceServers({ code, seated: me !== null })
   const sendSignal = useMutation(api.voice.signal)
@@ -87,8 +91,9 @@ function useMesh({
   const linksRef = useRef(new Map<Role, PeerLink>())
   const handled = useRef(new Set<string>())
   const trackRef = useRef(track)
+  const micRef = useRef(mic)
   const [streams, setStreams] = useState<ReadonlyMap<Role, MediaStream>>(new Map())
-  const [links, setLinks] = useState<ReadonlyMap<Role, RTCPeerConnectionState>>(new Map())
+  const [links, setLinks] = useState<ReadonlyMap<Role, PeerStatus>>(new Map())
 
   const forget = (peer: Role) => {
     const without = <T,>(map: ReadonlyMap<Role, T>) => new Map([...map].filter(([role]) => role !== peer))
@@ -106,12 +111,14 @@ function useMesh({
       iceServers,
       remoteId,
       track: trackRef.current,
+      mic: micRef.current,
       send: (signal) => void sendSignal({ code, sessionId, toRole: peer, ...encodeSignal(signal) }).catch(() => undefined),
       onStream: (stream) => current() && setStreams((map) => new Map(map).set(peer, stream)),
-      onState: (state) => current() && setLinks((map) => new Map(map).set(peer, state)),
+      onState: (connection) => current() && setLinks((map) => updated(map, peer, { connection })),
+      onRemoteMic: (remoteMic) => current() && setLinks((map) => updated(map, peer, { mic: remoteMic })),
     })
     linksRef.current.set(peer, link)
-    setLinks((map) => new Map(map).set(peer, "new"))
+    setLinks((map) => new Map(map).set(peer, { connection: "new", mic: "live" }))
     return link
   }
 
@@ -135,6 +142,11 @@ function useMesh({
       forget(peer)
     }
   }, [me, iceServers, peers])
+
+  useEffect(() => {
+    micRef.current = mic
+    for (const link of linksRef.current.values()) link.setMic(mic)
+  }, [mic])
 
   useEffect(() => {
     trackRef.current = track
@@ -177,6 +189,11 @@ function useMesh({
   }, [inbox, me, iceServers, peers])
 
   return { streams, links }
+}
+
+function updated(map: ReadonlyMap<Role, PeerStatus>, peer: Role, change: Partial<PeerStatus>) {
+  const current = map.get(peer)
+  return current ? new Map(map).set(peer, { ...current, ...change }) : map
 }
 
 /** Plays a peer's voice. Chrome also needs a remote stream playing in a media element before WebAudio can meter it. */

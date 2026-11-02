@@ -4,14 +4,15 @@ import { useVoice } from "./VoiceProvider"
 
 type VoiceState = "speaking" | "idle" | "connecting" | "muted" | "listening"
 
-function useVoiceState(role: Role): VoiceState {
+function useVoiceState(role: Role): VoiceState | null {
   const { me, mic, muted, speaking, links } = useVoice()
-  if (role === me) {
-    if (mic.kind !== "on") return "listening"
-    if (muted) return "muted"
-  } else if (links.get(role) !== "connected") {
-    return "connecting"
-  }
+  // A player without a seat isn't in the call, so there is nothing to show.
+  if (me === null) return null
+  const status = role === me ? null : links.get(role)
+  if (status && status.connection !== "connected") return "connecting"
+  const micState = status ? status.mic : mic.kind !== "on" ? "off" : muted ? "muted" : "live"
+  if (micState === "off") return "listening"
+  if (micState === "muted") return "muted"
   return speaking.has(role) ? "speaking" : "idle"
 }
 
@@ -19,6 +20,7 @@ function useVoiceState(role: Role): VoiceState {
 export function SpeakingIndicator({ role }: { readonly role: Role }) {
   const { t } = useTranslation()
   const state = useVoiceState(role)
+  if (!state) return null
   const label = t(`voice.state.${state}`)
   return (
     <span className={`voice-badge ${state}`} role="img" aria-label={label} title={label}>

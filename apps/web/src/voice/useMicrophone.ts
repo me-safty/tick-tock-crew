@@ -37,7 +37,7 @@ const isDenial = (error: unknown) =>
   error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "SecurityError")
 
 /** The player's microphone with echo cancellation, noise suppression and auto gain; a mute and an input picker. */
-export function useMicrophone() {
+export function useMicrophone({ enabled }: { enabled: boolean }) {
   const [mic, setMic] = useState<Mic>({ kind: "off" })
   const [muted, setMuted] = useState(false)
   const [devices, setDevices] = useState<ReadonlyArray<MediaDeviceInfo>>([])
@@ -64,11 +64,13 @@ export function useMicrophone() {
     }
   }, [])
 
-  // A mic the browser already allows for this site turns on by itself; otherwise the player is asked first.
+  // A mic the browser already allows for this site turns on by itself once the player has a seat; otherwise the
+  // player is asked first. Leaving the seat turns it off.
   useEffect(() => {
+    if (!enabled) return
     let cancelled = false
     navigator.permissions
-      ?.query({ name: "microphone" as PermissionName })
+      ?.query({ name: "microphone" })
       .then((status) => {
         if (cancelled) return
         if (status.state === "granted") void start(localStorage.getItem(DEVICE_KEY) ?? "")
@@ -80,8 +82,9 @@ export function useMicrophone() {
       attempt.current++
       live.current?.stop()
       live.current = null
+      setMic({ kind: "off" })
     }
-  }, [start])
+  }, [start, enabled])
 
   const track = mic.kind === "on" ? mic.track : null
   useEffect(() => {

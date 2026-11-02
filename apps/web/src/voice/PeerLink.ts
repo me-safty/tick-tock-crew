@@ -1,4 +1,4 @@
-import { type ChannelMessage, decodeMessage, encodeMessage, isFresh, type Signal } from "./protocol"
+import { type ChannelMessage, decodeMessage, encodeMessage, isFresh, type MicState, type Signal } from "./protocol"
 
 const HEARTBEAT_MS = 2_000
 
@@ -8,9 +8,11 @@ type PeerLinkOptions = {
   /** The remote connection this one answers, when a fresh offer from it started this link. */
   readonly remoteId: string | null
   readonly track: MediaStreamTrack | null
+  readonly mic: MicState
   readonly send: (signal: Signal) => void
   readonly onStream: (stream: MediaStream) => void
   readonly onState: (state: RTCPeerConnectionState) => void
+  readonly onRemoteMic: (mic: MicState) => void
 }
 
 type Connection = { readonly pc: RTCPeerConnection; readonly channel: RTCDataChannel }
@@ -28,6 +30,7 @@ export class PeerLink {
   private readonly options: PeerLinkOptions
   private connection: Connection
   private track: MediaStreamTrack | null
+  private mic: MicState
   private makingOffer = false
   private ignoreOffer = false
   private queue: Promise<void> = Promise.resolve()
@@ -39,8 +42,9 @@ export class PeerLink {
     this.options = options
     this.remoteId = options.remoteId
     this.track = options.track
+    this.mic = options.mic
     this.connection = this.connect()
-    this.heartbeat = setInterval(() => this.post({ kind: "heartbeat", seq: ++this.sentSeq, at: Date.now() }), HEARTBEAT_MS)
+    this.heartbeat = setInterval(() => this.beat(), HEARTBEAT_MS)
   }
 
   /** Signals are handled one at a time, in the order they arrive. */
@@ -60,6 +64,13 @@ export class PeerLink {
     else if (track) pc.addTrack(track)
   }
 
+  /** Tells the peer our mic state now rather than at the next heartbeat. */
+  setMic(mic: MicState) {
+    if (mic === this.mic) return
+    this.mic = mic
+    this.beat()
+  }
+
   close() {
     clearInterval(this.heartbeat)
     this.connection.channel.close()
@@ -73,6 +84,7 @@ export class PeerLink {
     // Negotiated with a fixed id on both sides, so glare never leaves two channels.
     const channel = pc.createDataChannel("crew", { negotiated: true, id: 0, ordered: false, maxRetransmits: 0 })
     channel.onmessage = ({ data }) => this.take(decodeMessage(data))
+    channel.onopen = () => this.beat()
     if (this.track) pc.addTrack(this.track)
     pc.onnegotiationneeded = () => {
       if (!current()) return
@@ -95,6 +107,10 @@ export class PeerLink {
     return { pc, channel }
   }
 
+  private beat() {
+    this.post({ kind: "heartbeat", seq: ++this.sentSeq, at: Date.now(), mic: this.mic })
+  }
+
   private post(message: ChannelMessage) {
     const { channel } = this.connection
     if (channel.readyState === "open") channel.send(encodeMessage(message))
@@ -103,6 +119,7 @@ export class PeerLink {
   private take(message: ChannelMessage | null) {
     if (!message || !isFresh({ lastSeq: this.heardSeq, seq: message.seq })) return
     this.heardSeq = message.seq
+    this.options.onRemoteMic(message.mic)
   }
 
   private sendDescription() {

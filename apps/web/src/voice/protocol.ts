@@ -68,12 +68,17 @@ export function routeSignal(
   return link.remoteId === null && signal.to === link.localId ? "adopt" : "drop"
 }
 
+/** What a player's mic is doing: sending, muted, or absent so they only listen. */
+export const MIC_STATES = ["live", "muted", "off"] as const
+export type MicState = (typeof MIC_STATES)[number]
+
 /**
  * Messages on each peer's data channel. It is unordered and never retransmits, so each carries a sequence number
  * and the receiver ignores anything older than what it already has. M8 adds character motion here.
  */
 const ChannelMessage = Schema.Union([
-  Schema.Struct({ kind: Schema.Literal("heartbeat"), seq: Schema.Int, at: Schema.Finite }),
+  /** Sent every couple of seconds and whenever the sender's mic changes, so the others can show it. */
+  Schema.Struct({ kind: Schema.Literal("heartbeat"), seq: Schema.Int, at: Schema.Finite, mic: Schema.Literals(MIC_STATES) }),
 ])
 export type ChannelMessage = typeof ChannelMessage.Type
 
