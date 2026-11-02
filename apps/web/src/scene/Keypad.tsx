@@ -6,7 +6,7 @@ import { type Group, MathUtils, type Mesh } from "three"
 import { GLYPH_BOX, GLYPH_STROKE, glyphPath } from "../glyphs"
 import type { ViewOf } from "../roles"
 import { useDrawnTexture } from "./labels"
-import { slotRect } from "./layout"
+import { KEY_SIZE, KEY_Y, keyX, slotRect } from "./layout"
 import { CLICK_SLOP_PX } from "./look"
 import { HOVER, Ink, INK, Paint, Toon, XRAY } from "./materials"
 import { usePrefersReducedMotion } from "./motion"
@@ -15,14 +15,9 @@ import { SlotNumber } from "./Wires"
 type OperatorModule = Extract<ViewOf<"operator">["modules"][number], { kind: "keypad" }>
 type ScannerModule = Extract<ViewOf<"scanner">["modules"][number], { kind: "keypad" }>
 
-const KEY_SIZE = 0.105
 const KEY_DEPTH = 0.04
-const KEY_PITCH = 0.13
-const KEY_Y = 0.02
 const PRESSED_DEPTH = 0.022
 const NUMBER_Y = -0.1
-
-const keyX = (key: number, count: number) => (key - (count - 1) / 2) * KEY_PITCH
 
 /** A key that sinks into the case once pressed. */
 function KeyCap({ pressed, children }: { readonly pressed: boolean; readonly children: ReactNode }) {

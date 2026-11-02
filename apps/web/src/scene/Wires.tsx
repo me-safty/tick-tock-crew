@@ -5,7 +5,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react"
 import { CatmullRomCurve3, type Group, MathUtils, TubeGeometry, Vector3 } from "three"
 import type { ViewOf } from "../roles"
 import { MONO_FONT, useDrawnTexture } from "./labels"
-import { type Rect, slotRect } from "./layout"
+import { type Rect, slotRect, wireLayout } from "./layout"
 import { CLICK_SLOP_PX } from "./look"
 import { HOVER, Ink, Paint, Toon, XRAY } from "./materials"
 
@@ -23,18 +23,6 @@ export const COLOR_HEX = {
 } as const satisfies Record<(typeof COLORS)[number], string>
 
 const WIRE_RADIUS = 0.011
-const TERMINAL_INSET = 0.075
-const MARGIN = 0.035
-function wireLayout({ rect, count }: { rect: Rect; count: number }) {
-  const span = rect.width - 2 * TERMINAL_INSET
-  const usable = rect.height - 2 * MARGIN
-  const spacing = usable / count
-  return {
-    span,
-    spacing,
-    ys: Array.from({ length: count }, (_, i) => usable / 2 - spacing * (i + 0.5)),
-  }
-}
 
 export function OperatorWires({
   index,
