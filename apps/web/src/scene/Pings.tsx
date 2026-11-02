@@ -1,6 +1,6 @@
 import { type ThreeEvent, useFrame } from "@react-three/fiber"
 import { useRef } from "react"
-import type { Group } from "three"
+import { AdditiveBlending, type Group } from "three"
 import type { BombTarget, Ping } from "../pings"
 import { FACE, type Rect } from "./layout"
 import { CLICK_SLOP_PX } from "./look"
@@ -79,7 +79,8 @@ function PingFrame({ rect, color }: { readonly rect: Rect; readonly color: strin
     <group ref={group} position={[rect.x, rect.y, FRAME_Z]}>
       <mesh renderOrder={9}>
         <planeGeometry args={[width, height]} />
-        <meshBasicMaterial color={color} transparent opacity={0.18} depthTest={false} toneMapped={false} />
+        {/* Additive, so the fill brightens the pinged part rather than hiding its color. */}
+        <meshBasicMaterial color={color} transparent opacity={0.22} blending={AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
       </mesh>
       {bars.map(({ x, y, w, h }, i) => (
         <mesh key={i} position={[x, y, 0]} renderOrder={10}>
