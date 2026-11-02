@@ -59,7 +59,8 @@ export function OperatorWires({
           <group key={i}>
             <SlotNumber number={i + 1} x={-rect.width / 2 + 0.035} y={y} />
             <Strand y={y} span={span} sag={sagOf(i)} cut={cut} highlighted={highlighted} solid>
-              <Toon color={COLOR_HEX[wire.color]} emissive={highlighted ? HOVER : "#000000"} emissiveIntensity={0.35} />
+              {/* A light glow keeps the wire's own color readable; the thick outline does the highlighting. */}
+              <Toon color={COLOR_HEX[wire.color]} emissive={highlighted ? HOVER : "#000000"} emissiveIntensity={0.15} />
             </Strand>
             {!cut && (
               <mesh
@@ -190,7 +191,10 @@ function Strand({
     >
       <mesh geometry={geometry}>
         {children}
-        {solid && (highlighted ? <Ink thickness={0.009} color={HOVER} /> : <Ink thickness={0.003} />)}
+        {solid && <Ink thickness={0.003} />}
+        {/* A wire is far thinner than a key or a wheel, so its hover outline is thicker to read as strongly; the ink
+            line inside it keeps a yellow wire apart from the amber. */}
+        {solid && highlighted && <Ink thickness={0.024} color={HOVER} />}
       </mesh>
       {cut && solid && (
         <mesh position={tip}>

@@ -45,6 +45,7 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
   const operator = useOperator(code)
   const dial = useDial()
   useAbsenceReport({ lobby, playing: match.status === "playing" })
+  const burst = useBurstNotice(match.lastBurstAt)
   useEffect(() => {
     if (!ended) return
     const id = setTimeout(() => setFinaleDone(true), FINALE_MS)
@@ -137,6 +138,11 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
       </header>
       {!ended && (
         <footer className="hud-hint">
+          {burst && (
+            <p className="feedback strike" role="alert">
+              {t("match.burst")}
+            </p>
+          )}
           {operator.feedback && (
             <p className={`feedback ${operator.feedback.outcome}`} role="status">
               {t(`match.feedback.${operator.feedback.text}`)}
@@ -177,6 +183,19 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
 }
 
 const FEEDBACK_MS = 4000
+
+/** Whether to show that the valve just burst. Bursts from before this screen opened aren't news. */
+function useBurstNotice(lastBurstAt: number | null) {
+  const [seen] = useState(lastBurstAt)
+  const [shown, setShown] = useState(false)
+  useEffect(() => {
+    if (lastBurstAt === null || lastBurstAt === seen) return
+    setShown(true)
+    const id = setTimeout(() => setShown(false), FEEDBACK_MS)
+    return () => clearTimeout(id)
+  }, [lastBurstAt, seen])
+  return shown
+}
 
 /**
  * Tells the server when a seat drops mid-match. The server checks presence itself and pauses only if the seat is
@@ -222,10 +241,10 @@ function useOperator(code: string) {
         const outcome = await tuneDial({ code, sessionId, module: action.module, frequency: action.frequency })
         return { outcome, text: `dial.${outcome}` } as const
       }
-      case "hold": {
-        const outcome = await holdValve({ code, sessionId, module: action.module })
-        return outcome === "burst" ? ({ outcome: "strike", text: "valve.burst" } as const) : null
-      }
+      case "hold":
+        // A hold that finds the valve topped out bursts it; the burst notice tells the whole crew.
+        await holdValve({ code, sessionId, module: action.module })
+        return null
       case "release": {
         const outcome = await releaseValve({ code, sessionId, module: action.module })
         return { outcome, text: `valve.${outcome}` } as const

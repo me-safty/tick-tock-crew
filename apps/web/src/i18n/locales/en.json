@@ -108,8 +108,7 @@
       },
       "valve": {
         "solved": "Sealed inside the band. Valve defused.",
-        "strike": "Sealed outside the band. Strike!",
-        "burst": "The valve burst before you grabbed it. Strike!"
+        "strike": "Sealed outside the band. Strike!"
       }
     },
     "dial": {
@@ -141,7 +140,8 @@
       "timeReason": "The timer ran out. The bomb went off.",
       "strikesSummary": "Strikes: {{strikes}} of {{max}}",
       "playAgain": "Play again"
-    }
+    },
+    "burst": "The valve burst: the pressure hit 100. Strike!"
   },
   "scene": {
     "binderTitle": "FIELD MANUAL",

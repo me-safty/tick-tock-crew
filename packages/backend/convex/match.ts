@@ -8,6 +8,7 @@ import {
   generateBomb,
   HANDLES,
   holdValve as holdValveRule,
+  lastBurstAt,
   MANUAL_TEXT,
   MARKS,
   type MatchState,
@@ -131,7 +132,13 @@ const roleView = v.union(
   }),
 )
 
-const matchView = { endsAt: v.number(), strikes: v.number(), view: v.union(v.null(), roleView) }
+const matchView = {
+  endsAt: v.number(),
+  strikes: v.number(),
+  /** When the valve last burst, so every role can say why a strike landed; null if it never has. */
+  lastBurstAt: v.union(v.null(), v.number()),
+  view: v.union(v.null(), roleView),
+}
 
 export const view = query({
   args: { code: v.string(), sessionId: v.string() },
@@ -145,12 +152,15 @@ export const view = query({
     const room = await findRoom(ctx, code)
     if (!room || room.status === "lobby") return null
     const seat = await findSeat(ctx, { roomId: room._id, sessionId })
-    const shared = { endsAt: room.endsAt, strikes: room.strikes }
-    const match =
-      room.status === "paused" ? { ...shared, status: room.status, pausedAt: room.pausedAt } : { ...shared, status: room.status }
-    if (!seat) return { ...match, view: null }
     const { bomb, state } = await loadMatch(ctx, room)
-    return { ...match, view: viewFor(bomb, state, seat.role) }
+    const valve = state.modules.find((module) => module.kind === "valve")
+    const shared = {
+      endsAt: room.endsAt,
+      strikes: room.strikes,
+      lastBurstAt: valve?.kind === "valve" ? lastBurstAt(valve.progress) : null,
+      view: seat ? viewFor(bomb, state, seat.role) : null,
+    }
+    return room.status === "paused" ? { ...shared, status: room.status, pausedAt: room.pausedAt } : { ...shared, status: room.status }
   },
 })
 
