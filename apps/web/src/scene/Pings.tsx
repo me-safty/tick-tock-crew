@@ -13,7 +13,7 @@ const ROLE_COLOR = {
   scanner: "#8bd450",
 } as const satisfies Record<Ping["fromRole"], string>
 
-// In front of every part on the face, so a ping click lands here before it can cut a wire or press a key.
+// In front of every part on the face, so a ping click lands here before it can cut a wire, press a key or grab the valve.
 const SURFACE_Z = 0.16
 const FRAME_Z = 0.13
 
@@ -46,7 +46,8 @@ export function PingLayer({
           event.nativeEvent.preventDefault()
           ping(event)
         }}
-        {...(pinging ? { onClick: ping } : {})}
+        // While pinging, a press on the valve's handle must not start venting it.
+        {...(pinging ? { onClick: ping, onPointerDown: (event: ThreeEvent<PointerEvent>) => event.stopPropagation() } : {})}
       >
         <planeGeometry args={[FACE.width, FACE.height]} />
         <meshBasicMaterial visible={false} />

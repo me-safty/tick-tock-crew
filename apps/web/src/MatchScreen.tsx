@@ -52,14 +52,14 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
   const dialModule = match.view?.role === "operator" ? match.view.modules.findIndex((module) => module.kind === "dial") : -1
   const dialArmed = dialModule >= 0 && match.view?.modules[dialModule]?.solved === false && !ended
   const valveModule = match.view?.role === "operator" ? match.view.modules.findIndex((module) => module.kind === "valve") : -1
+  const [pinging, setPinging] = useState(false)
   const valve = useValve({
-    armed: valveModule >= 0 && match.view?.modules[valveModule]?.solved === false && !ended,
+    armed: valveModule >= 0 && match.view?.modules[valveModule]?.solved === false && !ended && !pinging,
     onHold: () => void operator.act({ kind: "hold", module: valveModule }),
     onRelease: () => void operator.act({ kind: "release", module: valveModule }),
   })
   const clockOffset = useServerClockOffset(role === "scanner")
   const pings = usePings(code)
-  const [pinging, setPinging] = useState(false)
   const canPingBomb = (role === "operator" || role === "scanner") && !ended
   useEffect(() => {
     if (!pinging) return
