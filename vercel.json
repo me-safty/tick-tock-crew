@@ -3,6 +3,12 @@
   "framework": null,
   "installCommand": "bun install --frozen-lockfile",
   "buildCommand": "bash scripts/vercel-build.sh",
+  "ignoreCommand": "[ \"$VERCEL_ENV\" != production ]",
   "outputDirectory": "apps/web/dist",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
