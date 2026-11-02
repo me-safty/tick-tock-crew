@@ -71,6 +71,21 @@ describe("pause on disconnect", () => {
     expect((await getRoom(t))?.status).toBe("playing")
   })
 
+  test("gives a player who drops again inside the grace period a fresh one", async () => {
+    vi.useFakeTimers()
+    const { t, code } = await startedMatch()
+    await drop(t, code, scanner.sessionId)
+    await t.mutation(api.pause.reportAbsence, { code })
+    await runJobs(t, 2_000)
+    await goOnline(t, code, scanner.sessionId)
+    await runJobs(t, 2_500)
+    await drop(t, code, scanner.sessionId)
+    await runJobs(t, 1_000)
+    expect((await getRoom(t))?.status).toBe("playing")
+    await runJobs(t, PAUSE_GRACE_MS)
+    expect((await getRoom(t))?.status).toBe("paused")
+  })
+
   test("refuses the Operator's actions while paused", async () => {
     const { t, code } = await pausedMatch()
     await expect(t.mutation(api.match.cutWire, { code, sessionId: operator.sessionId, module: 0, wire: 0 })).rejects.toMatchObject({
@@ -128,6 +143,16 @@ describe("pause on disconnect", () => {
       ),
     )
     expect(bursts).toHaveLength(1)
+  })
+
+  test("lets nobody take a seat while the match plays", async () => {
+    vi.useFakeTimers()
+    const { t, code } = await startedMatch()
+    await drop(t, code, scanner.sessionId)
+    await goOnline(t, code, "d")
+    await expect(t.mutation(api.pause.takeOverSeat, { code, sessionId: "d", name: "Dee", role: "scanner" })).rejects.toMatchObject({
+      data: { code: "SEAT_TAKEN" },
+    })
   })
 
   test("resumes when someone takes over the empty seat", async () => {

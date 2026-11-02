@@ -5,16 +5,20 @@ import type { Doc } from "./_generated/dataModel"
 import { internalMutation, mutation, type MutationCtx, type QueryCtx } from "./_generated/server"
 import { appError } from "./errors"
 import { loadMatch, type MatchRoom } from "./match"
-import { findSeat, getRoom, onlineSessions, parseName, roomSeats } from "./rooms"
+import { findSeat, getRoom, parseName, presence, roomSeats } from "./rooms"
 import { role } from "./schema"
 import { scheduleBurst } from "./valve"
 
 /** How long a seat may be gone before the match pauses, so a reload never flashes the pause. */
 export const PAUSE_GRACE_MS = 5_000
 
+/** Seated players who are offline, each with when they left (0 if they were never here). */
 async function absentSeats(ctx: QueryCtx, room: Doc<"rooms">) {
-  const online = await onlineSessions(ctx, room.code)
-  return (await roomSeats(ctx, room._id)).filter((seat) => !online.has(seat.sessionId))
+  const users = new Map((await presence.listRoom(ctx, room.code)).map((user) => [user.userId, user]))
+  return (await roomSeats(ctx, room._id)).flatMap((seat) => {
+    const user = users.get(seat.sessionId)
+    return user?.online ? [] : [{ seat, leftAt: user?.lastDisconnected ?? 0 }]
+  })
 }
 
 /** Writes back the modules whose state changed. */
@@ -54,7 +58,15 @@ export const pauseIfAbsent = internalMutation({
   handler: async (ctx, { roomId }) => {
     const room = await ctx.db.get("rooms", roomId)
     const now = Date.now()
-    if (room?.status !== "playing" || now >= room.endsAt || (await absentSeats(ctx, room)).length === 0) return null
+    if (room?.status !== "playing" || now >= room.endsAt) return null
+    const absent = await absentSeats(ctx, room)
+    if (absent.length === 0) return null
+    // A player who came back and left again inside the grace period gets a fresh one, so two quick reloads don't pause.
+    const graceEnds = Math.min(...absent.map(({ leftAt }) => leftAt)) + PAUSE_GRACE_MS
+    if (graceEnds > now) {
+      await ctx.scheduler.runAt(graceEnds, internal.pause.pauseIfAbsent, { roomId })
+      return null
+    }
     const { bomb, modules, state } = await loadMatch(ctx, room)
     await saveModules(ctx, { room, modules, before: state, after: pauseState(bomb, state, { at: now }) })
     await ctx.scheduler.cancel(room.explodeJobId)
@@ -84,10 +96,12 @@ export const takeOverSeat = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const room = await getRoom(ctx, args.code)
-    if (room.status !== "playing" && room.status !== "paused") throw appError({ code: "MATCH_OVER" })
+    // Only a paused match waits for a seat; while it plays, a player reloading keeps theirs.
+    if (room.status === "playing") throw appError({ code: "SEAT_TAKEN" })
+    if (room.status !== "paused") throw appError({ code: "MATCH_OVER" })
     const name = parseName(args.name)
     if (await findSeat(ctx, { roomId: room._id, sessionId: args.sessionId })) throw appError({ code: "ALREADY_SEATED" })
-    const seat = (await absentSeats(ctx, room)).find((absent) => absent.role === args.role)
+    const seat = (await absentSeats(ctx, room)).find((absent) => absent.seat.role === args.role)?.seat
     if (!seat) throw appError({ code: "SEAT_TAKEN" })
     await ctx.db.patch("seats", seat._id, { sessionId: args.sessionId, name })
     await resumeIfPresent(ctx, room)

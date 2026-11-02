@@ -66,7 +66,7 @@ export async function getSeat(ctx: QueryCtx, { code, sessionId }: { readonly cod
   return { room, seat }
 }
 
-export async function onlineSessions(ctx: QueryCtx, code: string) {
+async function onlineSessions(ctx: QueryCtx, code: string) {
   return new Set((await presence.listRoom(ctx, code, true)).map((p) => p.userId))
 }
 
