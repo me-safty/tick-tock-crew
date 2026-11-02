@@ -8,7 +8,8 @@ const ROLE_ORDER: ReadonlyArray<Role> = ["operator", "analyst", "scanner"]
 /** Perfect negotiation needs one polite side per pair: the later role in seat order yields when both offer at once. */
 export const isPolite = ({ me, peer }: { me: Role; peer: Role }) => ROLE_ORDER.indexOf(me) > ROLE_ORDER.indexOf(peer)
 
-// `from` and `to` name RTCPeerConnections, not players, so a reloaded peer's leftover signals can be told apart.
+// `from` and `to` name links, not players, so a reloaded peer's leftover signals can be told apart. A link keeps its
+// id across the RTCPeerConnections it replaces, and a link that starts over takes a new one.
 const Ends = { from: Schema.String, to: Schema.NullOr(Schema.String) }
 const SdpPayload = Schema.Struct({ ...Ends, sdp: Schema.String })
 const IcePayload = Schema.Struct({
@@ -67,6 +68,22 @@ export function routeSignal(
   if (signal.kind === "offer") return link.remoteId === null ? "adopt" : "reset"
   return link.remoteId === null && signal.to === link.localId ? "adopt" : "drop"
 }
+
+/** An offer of ours that has gone unanswered this long was likely never read, e.g. it expired or the seat changed hands. */
+export const STALE_OFFER_MS = 4_000
+
+/**
+ * Whether to ignore a remote offer that collides with our own. The impolite side does, unless its own offer is stale:
+ * then the remote never answers it, and only taking theirs connects the pair.
+ */
+export const ignoresOffer = ({ polite, offeredAt, now }: { polite: boolean; offeredAt: number; now: number }) =>
+  !polite && now - offeredAt < STALE_OFFER_MS
+
+/** How long a link may go unconnected before it starts over with a new id: 8 s, doubling per retry up to about a minute. */
+export const stuckAfterMs = (retries: number) => Math.min(8_000 * 2 ** retries, 64_000)
+
+export const isStuck = ({ connected, since, now, after }: { connected: boolean; since: number; now: number; after: number }) =>
+  !connected && now - since >= after
 
 /** What a player's mic is doing: sending, muted, or absent so they only listen. */
 export const MIC_STATES = ["live", "muted", "off"] as const

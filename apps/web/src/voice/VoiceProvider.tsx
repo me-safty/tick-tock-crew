@@ -5,7 +5,7 @@ import { sessionId } from "../guest"
 import { hasModifier, isTyping } from "../keys"
 import type { Lobby } from "../roles"
 import { PeerLink } from "./PeerLink"
-import { decodeSignal, encodeSignal, isPolite, type MicState, type Role, routeSignal } from "./protocol"
+import { decodeSignal, encodeSignal, isPolite, type MicState, type Role, routeSignal, stuckAfterMs } from "./protocol"
 import { useMicrophone } from "./useMicrophone"
 import { useSpeaking, type VoiceSource } from "./useSpeaking"
 
@@ -57,7 +57,8 @@ function useIceServers({ code, seated }: { code: string; seated: boolean }) {
   const fetchIceServers = useAction(api.voice.iceServers)
   const [servers, setServers] = useState<RTCIceServer[] | null>(null)
   useEffect(() => {
-    if (!seated) return
+    // Fetched once per room: a new array after reseating would rebuild every link for nothing.
+    if (!seated || servers) return
     let cancelled = false
     fetchIceServers({ code, sessionId }).then(
       (fetched) => !cancelled && setServers(fetched),
@@ -67,7 +68,7 @@ function useIceServers({ code, seated }: { code: string; seated: boolean }) {
     return () => {
       cancelled = true
     }
-  }, [code, seated, fetchIceServers])
+  }, [code, seated, servers, fetchIceServers])
   return servers
 }
 
@@ -91,6 +92,8 @@ function useMesh({
   const inbox = useQuery(api.voice.inbox, me ? { code, sessionId } : "skip")
   const linksRef = useRef(new Map<Role, PeerLink>())
   const handled = useRef(new Set<string>())
+  /** Restarts per peer since its link last connected, for the watchdog's backoff. */
+  const retries = useRef(new Map<Role, number>())
   const trackRef = useRef(track)
   const micRef = useRef(mic)
   const [streams, setStreams] = useState<ReadonlyMap<Role, MediaStream>>(new Map())
@@ -115,7 +118,17 @@ function useMesh({
       mic: micRef.current,
       send: (signal) => void sendSignal({ code, sessionId, toRole: peer, ...encodeSignal(signal) }).catch(() => undefined),
       onStream: (stream) => current() && setStreams((map) => new Map(map).set(peer, stream)),
-      onState: (connection) => current() && setLinks((map) => updated(map, peer, { connection })),
+      onState: (connection) => {
+        if (!current()) return
+        if (connection === "connected") retries.current.delete(peer)
+        setLinks((map) => updated(map, peer, { connection }))
+      },
+      stuckAfterMs: stuckAfterMs(retries.current.get(peer) ?? 0),
+      onStuck: () => {
+        if (!current()) return
+        retries.current.set(peer, (retries.current.get(peer) ?? 0) + 1)
+        open(peer, null)
+      },
       onRemoteMic: (remoteMic) => current() && setLinks((map) => updated(map, peer, { mic: remoteMic })),
     })
     linksRef.current.set(peer, link)

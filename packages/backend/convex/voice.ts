@@ -1,9 +1,10 @@
 import { type Infer, v } from "convex/values"
 import { Option, Schema } from "effect"
 import { internal } from "./_generated/api"
-import { action, internalQuery, mutation, query } from "./_generated/server"
+import { action, internalMutation, internalQuery, mutation, query } from "./_generated/server"
 import { appError } from "./errors"
 import { findRoom, findSeat, getSeat } from "./rooms"
+import { pruneSignals } from "./signals"
 import { role, signalKind } from "./schema"
 
 /** An SDP offer runs a few kilobytes; anything far past that is not a signal. */
@@ -26,13 +27,14 @@ export const signal = mutation({
       .withIndex("by_room_and_role", (q) => q.eq("roomId", room._id).eq("role", toRole))
       .unique()
     if (!recipient) throw appError({ code: "SIGNAL_INVALID" })
+    await pruneSignals(ctx, { roomId: room._id, toRole, now: Date.now() })
+    // At the cap, the sender's oldest unread signal makes room: the newest belong to its current negotiation.
     const waiting = await ctx.db
       .query("signals")
       .withIndex("by_room_and_to", (q) => q.eq("roomId", room._id).eq("toRole", toRole))
       .take(INBOX_SIZE)
-    if (waiting.filter((signal) => signal.fromRole === seat.role).length >= MAX_UNREAD) {
-      throw appError({ code: "TOO_MANY_SIGNALS" })
-    }
+    const mine = waiting.filter((signal) => signal.fromRole === seat.role)
+    for (const stale of mine.slice(0, Math.max(0, mine.length - MAX_UNREAD + 1))) await ctx.db.delete("signals", stale._id)
     await ctx.db.insert("signals", { roomId: room._id, fromRole: seat.role, toRole, kind, payload })
     return null
   },
@@ -64,6 +66,16 @@ export const ack = mutation({
       const signal = await ctx.db.get("signals", id)
       if (signal?.roomId === room._id && signal.toRole === seat.role) await ctx.db.delete("signals", id)
     }
+    return null
+  },
+})
+
+/** Scheduled when a match ends: voice goes on over the end screen, so only signals past their TTL go. */
+export const pruneRoom = internalMutation({
+  args: { roomId: v.id("rooms") },
+  returns: v.null(),
+  handler: async (ctx, { roomId }) => {
+    for (const toRole of role.members.map((member) => member.value)) await pruneSignals(ctx, { roomId, toRole, now: Date.now() })
     return null
   },
 })

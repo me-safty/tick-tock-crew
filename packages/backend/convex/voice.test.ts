@@ -3,6 +3,7 @@ import { api, internal } from "./_generated/api"
 import { goOnline, PLAYERS, seatAll, setup } from "./test.setup"
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllEnvs()
   vi.unstubAllGlobals()
 })
@@ -92,28 +93,30 @@ describe("signal limits and cleanup", () => {
     ).rejects.toMatchObject({ data: { code: "SIGNAL_INVALID" } })
   })
 
-  test("a seat can leave only so many unread signals for another", async () => {
+  test("past the cap, a sender's oldest unread signal makes way for its newest", async () => {
     const { t, code } = await seatedRoom()
-    const send = () => t.mutation(api.voice.signal, { code, sessionId: operator.sessionId, toRole: "analyst", ...offer })
-    for (let i = 0; i < 40; i++) await send()
-    await expect(send()).rejects.toMatchObject({ data: { code: "TOO_MANY_SIGNALS" } })
-    // The other peer's signals still get through.
+    for (let i = 0; i < 41; i++) {
+      await t.mutation(api.voice.signal, { code, sessionId: operator.sessionId, toRole: "analyst", kind: "ice", payload: `c${i}` })
+    }
     await t.mutation(api.voice.signal, { code, sessionId: scanner.sessionId, toRole: "analyst", ...offer })
+    const payloads = (await t.query(api.voice.inbox, { code, sessionId: analyst.sessionId })).map((signal) => signal.payload)
+    expect(payloads).toHaveLength(41)
+    expect(payloads).not.toContain("c0")
+    expect(payloads).toContain("c40")
   })
 
-  test("are deleted to and from a seat its player leaves", async () => {
+  test("expire after a minute: the next signal to that seat clears them", async () => {
+    vi.useFakeTimers()
     const { t, code } = await seatedRoom()
     await t.mutation(api.voice.signal, { code, sessionId: operator.sessionId, toRole: "analyst", ...offer })
-    await t.mutation(api.voice.signal, { code, sessionId: analyst.sessionId, toRole: "scanner", ...offer })
-    await t.mutation(api.voice.signal, { code, sessionId: scanner.sessionId, toRole: "operator", ...offer })
-
-    await t.mutation(api.rooms.leaveSeat, { code, sessionId: analyst.sessionId })
-
-    const left = await t.run((ctx) => ctx.db.query("signals").collect())
-    expect(left.map(({ fromRole, toRole }) => `${fromRole}->${toRole}`)).toEqual(["scanner->operator"])
+    vi.advanceTimersByTime(61_000)
+    await t.mutation(api.voice.signal, { code, sessionId: scanner.sessionId, toRole: "analyst", kind: "offer", payload: "fresh" })
+    const payloads = (await t.query(api.voice.inbox, { code, sessionId: analyst.sessionId })).map((signal) => signal.payload)
+    expect(payloads).toEqual(["fresh"])
   })
 
-  test("are all deleted when the match ends", async () => {
+  test("left over when a match ends expire a minute later", async () => {
+    vi.useFakeTimers()
     const { t, code } = await seatedRoom()
     for (const p of PLAYERS) await t.mutation(api.rooms.setReady, { code, sessionId: p.sessionId, ready: true })
     await t.mutation(api.rooms.startMatch, { code, sessionId: operator.sessionId })
@@ -121,7 +124,10 @@ describe("signal limits and cleanup", () => {
     const room = await t.run((ctx) => ctx.db.query("rooms").first())
     if (!room) throw new Error("no room")
     await t.mutation(internal.match.explode, { roomId: room._id })
-    expect(await t.run((ctx) => ctx.db.query("signals").collect())).toEqual([])
+    expect(await t.query(api.voice.inbox, { code, sessionId: analyst.sessionId })).toHaveLength(1)
+    vi.advanceTimersByTime(61_000)
+    await t.finishInProgressScheduledFunctions()
+    expect(await t.query(api.voice.inbox, { code, sessionId: analyst.sessionId })).toEqual([])
   })
 })
 

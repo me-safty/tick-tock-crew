@@ -1,22 +1,17 @@
 import type { Doc, Id } from "./_generated/dataModel"
 import type { MutationCtx } from "./_generated/server"
-import { role } from "./schema"
 
-const ROLES = role.members.map((member) => member.value)
-const BATCH = 100
+/** A signal nobody read within this long belongs to a negotiation that has been given up on or retried. */
+export const SIGNAL_TTL_MS = 60_000
 
-/**
- * Deletes the room's WebRTC signals: all of them when the match is over, or only those to and from `seat` when its
- * player leaves, so nobody who takes the seat next reads a stranger's offers.
- */
-export async function clearSignals(ctx: MutationCtx, { roomId, seat }: { roomId: Id<"rooms">; seat?: Doc<"seats">["role"] }) {
-  for (const inbox of ROLES) {
-    const pending = await ctx.db
-      .query("signals")
-      .withIndex("by_room_and_to", (q) => q.eq("roomId", roomId).eq("toRole", inbox))
-      .take(BATCH)
-    for (const signal of pending) {
-      if (seat === undefined || inbox === seat || signal.fromRole === seat) await ctx.db.delete("signals", signal._id)
-    }
-  }
+/** Deletes the signals waiting for `toRole` that are older than SIGNAL_TTL_MS. */
+export async function pruneSignals(
+  ctx: MutationCtx,
+  { roomId, toRole, now }: { roomId: Id<"rooms">; toRole: Doc<"seats">["role"]; now: number },
+) {
+  const expired = await ctx.db
+    .query("signals")
+    .withIndex("by_room_and_to", (q) => q.eq("roomId", roomId).eq("toRole", toRole).lt("_creationTime", now - SIGNAL_TTL_MS))
+    .take(100)
+  for (const signal of expired) await ctx.db.delete("signals", signal._id)
 }

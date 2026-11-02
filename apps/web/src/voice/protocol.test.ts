@@ -1,5 +1,18 @@
 import { describe, expect, test } from "vitest"
-import { decodeMessage, decodeSignal, encodeMessage, encodeSignal, isFresh, isPolite, routeSignal, type Signal } from "./protocol"
+import {
+  decodeMessage,
+  decodeSignal,
+  encodeMessage,
+  encodeSignal,
+  ignoresOffer,
+  isFresh,
+  isPolite,
+  isStuck,
+  routeSignal,
+  type Signal,
+  STALE_OFFER_MS,
+  stuckAfterMs,
+} from "./protocol"
 
 describe("isPolite", () => {
   test("exactly one side of every pair is polite", () => {
@@ -54,6 +67,46 @@ describe("routeSignal", () => {
     expect(routeSignal(linked, { kind: "ice", from: "b0", to: null })).toBe("drop")
     expect(routeSignal(linked, { kind: "answer", from: "b0", to: "a1" })).toBe("drop")
     expect(routeSignal(fresh, { kind: "ice", from: "b1", to: null })).toBe("drop")
+  })
+})
+
+describe("recovering a stuck pair", () => {
+  test("the impolite side takes a newcomer's offer once its own has gone unanswered (seat taken over)", () => {
+    // Our offer to the old seat holder was never read; the newcomer offers from a link we don't know yet.
+    const operator = { localId: "a1", remoteId: null }
+    const now = 100_000
+    expect(routeSignal(operator, { kind: "offer", from: "n1", to: null })).toBe("adopt")
+    expect(ignoresOffer({ polite: false, offeredAt: now - 60_000, now })).toBe(false)
+  })
+
+  test("on a true simultaneous start the impolite side still ignores the other offer", () => {
+    const now = 100_000
+    expect(ignoresOffer({ polite: false, offeredAt: now - STALE_OFFER_MS / 4, now })).toBe(true)
+    expect(ignoresOffer({ polite: true, offeredAt: now - STALE_OFFER_MS / 4, now })).toBe(false)
+  })
+
+  test("a returning peer reading a backlog of offers ends up linked to the sender's newest link", () => {
+    // The sender restarted several times while we were away; only its newest link is still listening.
+    let link: { localId: string; remoteId: string | null } = { localId: "b1", remoteId: null }
+    let resets = 0
+    for (const from of ["a3", "a4", "a5"]) {
+      const route = routeSignal(link, { kind: "offer", from, to: null })
+      if (route === "reset") {
+        resets++
+        link = { localId: `b${resets + 1}`, remoteId: from }
+      } else if (route === "adopt") {
+        link = { ...link, remoteId: from }
+      }
+    }
+    expect(link.remoteId).toBe("a5")
+    expect(routeSignal(link, { kind: "ice", from: "a5", to: link.localId })).toBe("deliver")
+  })
+
+  test("a link that never connects starts over, waiting longer each time", () => {
+    expect(isStuck({ connected: false, since: 0, now: stuckAfterMs(0), after: stuckAfterMs(0) })).toBe(true)
+    expect(isStuck({ connected: true, since: 0, now: 1_000_000, after: stuckAfterMs(0) })).toBe(false)
+    expect(isStuck({ connected: false, since: 0, now: stuckAfterMs(0) - 1, after: stuckAfterMs(0) })).toBe(false)
+    expect([0, 1, 2, 3, 9].map(stuckAfterMs)).toEqual([8_000, 16_000, 32_000, 64_000, 64_000])
   })
 })
 

@@ -6,7 +6,6 @@ import type { Doc, Id } from "./_generated/dataModel"
 import { appError } from "./errors"
 import { mutation, query, type QueryCtx } from "./_generated/server"
 import { role } from "./schema"
-import { clearSignals } from "./signals"
 import { scheduleBurst } from "./valve"
 
 // Presence rooms are keyed by room code and users by guest sessionId.
@@ -114,13 +113,9 @@ export const claimSeat = mutation({
     if (taken) {
       if ((await onlineSessions(ctx, room.code)).has(taken.sessionId)) throw appError({ code: "SEAT_TAKEN" })
       await ctx.db.delete("seats", taken._id)
-      await clearSignals(ctx, { roomId: room._id, seat: taken.role })
     }
     const current = await findSeat(ctx, { roomId: room._id, sessionId: args.sessionId })
-    if (current) {
-      await ctx.db.delete("seats", current._id)
-      await clearSignals(ctx, { roomId: room._id, seat: current.role })
-    }
+    if (current) await ctx.db.delete("seats", current._id)
     await ctx.db.insert("seats", {
       roomId: room._id,
       role: args.role,
@@ -138,10 +133,7 @@ export const leaveSeat = mutation({
   handler: async (ctx, { code, sessionId }) => {
     const room = await getLobbyRoom(ctx, code)
     const seat = await findSeat(ctx, { roomId: room._id, sessionId })
-    if (seat) {
-      await ctx.db.delete("seats", seat._id)
-      await clearSignals(ctx, { roomId: room._id, seat: seat.role })
-    }
+    if (seat) await ctx.db.delete("seats", seat._id)
     return null
   },
 })

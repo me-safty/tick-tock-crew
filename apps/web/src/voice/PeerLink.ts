@@ -1,4 +1,13 @@
-import { type ChannelMessage, decodeMessage, encodeMessage, isFresh, type MicState, type Signal } from "./protocol"
+import {
+  type ChannelMessage,
+  decodeMessage,
+  encodeMessage,
+  ignoresOffer,
+  isFresh,
+  isStuck,
+  type MicState,
+  type Signal,
+} from "./protocol"
 
 const HEARTBEAT_MS = 2_000
 
@@ -13,13 +22,17 @@ type PeerLinkOptions = {
   readonly onStream: (stream: MediaStream) => void
   readonly onState: (state: RTCPeerConnectionState) => void
   readonly onRemoteMic: (mic: MicState) => void
+  /** How long the link may go unconnected before `onStuck`. */
+  readonly stuckAfterMs: number
+  /** The link never connected, or lost its connection, for `stuckAfterMs`: the owner replaces it. */
+  readonly onStuck: () => void
 }
 
 type Connection = { readonly pc: RTCPeerConnection; readonly channel: RTCDataChannel }
 
 /**
  * One link to one other seat, carrying our mic and an unreliable data channel, negotiated with the perfect
- * negotiation pattern. When both sides make their first offer at once, the polite side answers on a fresh
+ * negotiation pattern. When both sides make their first offer at once, the side that yields answers on a fresh
  * RTCPeerConnection instead of rolling back: Chrome can reject the data channel's m-line after rolling back an offer
  * that carried it, which leaves the link with no transport at all.
  */
@@ -32,6 +45,11 @@ export class PeerLink {
   private track: MediaStreamTrack | null
   private mic: MicState
   private makingOffer = false
+  private offeredAt = 0
+  /** When the link last connected or lost its connection, for the watchdog. */
+  private since = Date.now()
+  private stuck = false
+  private connected = false
   private ignoreOffer = false
   private queue: Promise<void> = Promise.resolve()
   private sentSeq = 0
@@ -44,7 +62,10 @@ export class PeerLink {
     this.track = options.track
     this.mic = options.mic
     this.connection = this.connect()
-    this.heartbeat = setInterval(() => this.beat(), HEARTBEAT_MS)
+    this.heartbeat = setInterval(() => {
+      this.beat()
+      this.watch()
+    }, HEARTBEAT_MS)
   }
 
   /** Signals are handled one at a time, in the order they arrive. */
@@ -89,6 +110,7 @@ export class PeerLink {
     pc.onnegotiationneeded = () => {
       if (!current()) return
       this.makingOffer = true
+      this.offeredAt = Date.now()
       pc.setLocalDescription()
         .then(() => this.sendDescription())
         .catch(() => undefined)
@@ -102,9 +124,23 @@ export class PeerLink {
     pc.oniceconnectionstatechange = () => {
       if (pc.iceConnectionState === "failed") pc.restartIce()
     }
-    pc.onconnectionstatechange = () => current() && options.onState(pc.connectionState)
+    pc.onconnectionstatechange = () => {
+      if (!current()) return
+      if ((pc.connectionState === "connected") !== this.connected) {
+        this.connected = pc.connectionState === "connected"
+        this.since = Date.now()
+      }
+      options.onState(pc.connectionState)
+    }
     pc.ontrack = ({ track }) => current() && options.onStream(new MediaStream([track]))
     return { pc, channel }
+  }
+
+  private watch() {
+    const now = Date.now()
+    if (this.stuck || !isStuck({ connected: this.connected, since: this.since, now, after: this.options.stuckAfterMs })) return
+    this.stuck = true
+    this.options.onStuck()
   }
 
   private beat() {
@@ -140,7 +176,7 @@ export class PeerLink {
     }
     const { pc } = this.connection
     const collision = signal.kind === "offer" && (this.makingOffer || pc.signalingState !== "stable")
-    this.ignoreOffer = !this.options.polite && collision
+    this.ignoreOffer = collision && ignoresOffer({ polite: this.options.polite, offeredAt: this.offeredAt, now: Date.now() })
     if (this.ignoreOffer) return
     if (collision && pc.remoteDescription === null) {
       this.connection.channel.close()
