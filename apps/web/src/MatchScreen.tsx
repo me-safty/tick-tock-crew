@@ -219,7 +219,7 @@ function useOperator(code: string) {
   const tuneDial = useMutation(api.match.tuneDial)
   const holdValve = useMutation(api.match.holdValve)
   const releaseValve = useMutation(api.match.releaseValve)
-  const { error, run } = useMutationError()
+  const { error, run } = useMutationError({ transient: true })
   const [pending, setPending] = useState<OperatorAction | null>(null)
   const [feedback, setFeedback] = useState<Awaited<ReturnType<typeof send>> | null>(null)
   useEffect(() => {
