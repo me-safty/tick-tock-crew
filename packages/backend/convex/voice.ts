@@ -9,6 +9,8 @@ import { role, signalKind } from "./schema"
 /** An SDP offer runs a few kilobytes; anything far past that is not a signal. */
 const MAX_PAYLOAD_LENGTH = 32_000
 const INBOX_SIZE = 100
+/** Unread signals one seat may leave for another: a few negotiations' worth of offers and ICE candidates. */
+const MAX_UNREAD = 40
 
 const seatArgs = { code: v.string(), sessionId: v.string() }
 
@@ -19,6 +21,18 @@ export const signal = mutation({
   handler: async (ctx, { toRole, kind, payload, ...args }) => {
     const { room, seat } = await getSeat(ctx, args)
     if (toRole === seat.role || payload.length > MAX_PAYLOAD_LENGTH) throw appError({ code: "SIGNAL_INVALID" })
+    const recipient = await ctx.db
+      .query("seats")
+      .withIndex("by_room_and_role", (q) => q.eq("roomId", room._id).eq("role", toRole))
+      .unique()
+    if (!recipient) throw appError({ code: "SIGNAL_INVALID" })
+    const waiting = await ctx.db
+      .query("signals")
+      .withIndex("by_room_and_to", (q) => q.eq("roomId", room._id).eq("toRole", toRole))
+      .take(INBOX_SIZE)
+    if (waiting.filter((signal) => signal.fromRole === seat.role).length >= MAX_UNREAD) {
+      throw appError({ code: "TOO_MANY_SIGNALS" })
+    }
     await ctx.db.insert("signals", { roomId: room._id, fromRole: seat.role, toRole, kind, payload })
     return null
   },

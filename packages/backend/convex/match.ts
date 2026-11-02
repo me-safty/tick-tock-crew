@@ -28,6 +28,7 @@ import { type AppError, appError } from "./errors"
 import { internalMutation, mutation, type MutationCtx, query, type QueryCtx } from "./_generated/server"
 import { findRoom, findSeat, getRoom } from "./rooms"
 import { literals, valveEvent } from "./schema"
+import { clearSignals } from "./signals"
 import { scheduleBurst } from "./valve"
 
 type MatchRoom = Exclude<Doc<"rooms">, { status: "lobby" }>
@@ -62,6 +63,7 @@ export const explode = internalMutation({
     const room = await ctx.db.get("rooms", roomId)
     if (room?.status !== "playing") return null
     await ctx.db.replace("rooms", roomId, endedRoom({ room, status: "lost", strikes: room.strikes }))
+    await clearSignals(ctx, { roomId })
     return null
   },
 })
@@ -198,6 +200,7 @@ async function settle(
   } else {
     await ctx.scheduler.cancel(room.explodeJobId)
     await ctx.db.replace("rooms", room._id, endedRoom({ room, status, strikes: outcome.state.strikes }))
+    await clearSignals(ctx, { roomId: room._id })
   }
 }
 

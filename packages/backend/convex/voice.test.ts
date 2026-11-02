@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest"
-import { api } from "./_generated/api"
-import { PLAYERS, seatAll, setup } from "./test.setup"
+import { api, internal } from "./_generated/api"
+import { goOnline, PLAYERS, seatAll, setup } from "./test.setup"
 
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -79,6 +79,51 @@ const TURN_SERVERS = {
     },
   ],
 }
+
+describe("signal limits and cleanup", () => {
+  const offer = { kind: "offer", payload: "o1" } as const
+
+  test("only reach a seat someone holds", async () => {
+    const { t, code } = await setup()
+    await goOnline(t, code, operator.sessionId)
+    await t.mutation(api.rooms.claimSeat, { code, ...operator })
+    await expect(
+      t.mutation(api.voice.signal, { code, sessionId: operator.sessionId, toRole: "analyst", ...offer }),
+    ).rejects.toMatchObject({ data: { code: "SIGNAL_INVALID" } })
+  })
+
+  test("a seat can leave only so many unread signals for another", async () => {
+    const { t, code } = await seatedRoom()
+    const send = () => t.mutation(api.voice.signal, { code, sessionId: operator.sessionId, toRole: "analyst", ...offer })
+    for (let i = 0; i < 40; i++) await send()
+    await expect(send()).rejects.toMatchObject({ data: { code: "TOO_MANY_SIGNALS" } })
+    // The other peer's signals still get through.
+    await t.mutation(api.voice.signal, { code, sessionId: scanner.sessionId, toRole: "analyst", ...offer })
+  })
+
+  test("are deleted to and from a seat its player leaves", async () => {
+    const { t, code } = await seatedRoom()
+    await t.mutation(api.voice.signal, { code, sessionId: operator.sessionId, toRole: "analyst", ...offer })
+    await t.mutation(api.voice.signal, { code, sessionId: analyst.sessionId, toRole: "scanner", ...offer })
+    await t.mutation(api.voice.signal, { code, sessionId: scanner.sessionId, toRole: "operator", ...offer })
+
+    await t.mutation(api.rooms.leaveSeat, { code, sessionId: analyst.sessionId })
+
+    const left = await t.run((ctx) => ctx.db.query("signals").collect())
+    expect(left.map(({ fromRole, toRole }) => `${fromRole}->${toRole}`)).toEqual(["scanner->operator"])
+  })
+
+  test("are all deleted when the match ends", async () => {
+    const { t, code } = await seatedRoom()
+    for (const p of PLAYERS) await t.mutation(api.rooms.setReady, { code, sessionId: p.sessionId, ready: true })
+    await t.mutation(api.rooms.startMatch, { code, sessionId: operator.sessionId })
+    await t.mutation(api.voice.signal, { code, sessionId: operator.sessionId, toRole: "analyst", ...offer })
+    const room = await t.run((ctx) => ctx.db.query("rooms").first())
+    if (!room) throw new Error("no room")
+    await t.mutation(internal.match.explode, { roomId: room._id })
+    expect(await t.run((ctx) => ctx.db.query("signals").collect())).toEqual([])
+  })
+})
 
 describe("iceServers", () => {
   test("mints Cloudflare TURN credentials when the deployment has a TURN key, minus port 53", async () => {

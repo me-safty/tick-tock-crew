@@ -13,6 +13,7 @@ import type * as match from "../match.js";
 import type * as pings from "../pings.js";
 import type * as presence from "../presence.js";
 import type * as rooms from "../rooms.js";
+import type * as signals from "../signals.js";
 import type * as valve from "../valve.js";
 import type * as voice from "../voice.js";
 
@@ -28,6 +29,7 @@ declare const fullApi: ApiFromModules<{
   pings: typeof pings;
   presence: typeof presence;
   rooms: typeof rooms;
+  signals: typeof signals;
   valve: typeof valve;
   voice: typeof voice;
 }>;

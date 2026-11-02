@@ -146,11 +146,11 @@ function useMesh({
     const read: typeof inbox = []
     for (const row of inbox) {
       if (handled.current.has(row.id)) continue
-      const link = linksRef.current.get(row.fromRole)
-      // From a seat our lobby view hasn't caught up with yet: keep it until its link exists.
-      if (!link) continue
       handled.current.add(row.id)
       read.push(row)
+      // Convex updates the lobby and inbox queries together, so a sender without a link has left its seat.
+      const link = linksRef.current.get(row.fromRole)
+      if (!link) continue
       const signal = decodeSignal(row)
       if (!signal) continue
       const route = routeSignal(link, signal)

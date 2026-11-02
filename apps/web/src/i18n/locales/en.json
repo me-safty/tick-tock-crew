@@ -259,6 +259,7 @@
     "FREQUENCY_OFF_DIAL": "That frequency isn't on the dial",
     "VALVE_NOT_HELD": "Nobody is holding the valve",
     "SIGNAL_INVALID": "That voice signal can't be sent",
+    "TOO_MANY_SIGNALS": "Too many voice signals waiting; try again shortly",
     "PING_NOT_ALLOWED": "Your role can't point at that",
     "PING_TARGET_NOT_FOUND": "There's nothing there to point at",
     "TOO_MANY_PINGS": "Slow down: wait a moment before the next ping",
