@@ -16,6 +16,8 @@ export const valveEvent = v.object({
   at: v.number(),
 })
 
+export const signalKind = v.union(v.literal("offer"), v.literal("answer"), v.literal("ice"))
+
 export default defineSchema({
   rooms: defineTable(
     v.union(
@@ -45,4 +47,12 @@ export default defineSchema({
   })
     .index("by_room_and_role", ["roomId", "role"])
     .index("by_room_and_session", ["roomId", "sessionId"]),
+  // WebRTC offers, answers and ICE candidates between seats; the recipient deletes each once it has read it.
+  signals: defineTable({
+    roomId: v.id("rooms"),
+    fromRole: role,
+    toRole: role,
+    kind: signalKind,
+    payload: v.string(),
+  }).index("by_room_and_to", ["roomId", "toRole"]),
 })

@@ -221,6 +221,7 @@
     "KEY_ALREADY_PRESSED": "هذا المفتاح مضغوط بالفعل",
     "FREQUENCY_OFF_DIAL": "هذا التردد ليس على القرص",
     "VALVE_NOT_HELD": "لا أحد يمسك الصمام",
+    "SIGNAL_INVALID": "تعذّر إرسال إشارة الصوت",
     "NICKNAME_LENGTH": "اختر اسمًا مستعارًا من 1 إلى {{max}} حرفًا"
   }
 }

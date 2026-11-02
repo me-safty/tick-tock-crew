@@ -59,6 +59,14 @@ export function findSeat(ctx: QueryCtx, { roomId, sessionId }: Pick<Doc<"seats">
     .unique()
 }
 
+/** The room and the caller's seat in it, for functions only seated players may call. */
+export async function getSeat(ctx: QueryCtx, { code, sessionId }: { readonly code: string; readonly sessionId: string }) {
+  const room = await getRoom(ctx, code)
+  const seat = await findSeat(ctx, { roomId: room._id, sessionId })
+  if (!seat) throw appError({ code: "SEAT_REQUIRED" })
+  return { room, seat }
+}
+
 async function onlineSessions(ctx: QueryCtx, code: string) {
   return new Set((await presence.listRoom(ctx, code, true)).map((p) => p.userId))
 }
