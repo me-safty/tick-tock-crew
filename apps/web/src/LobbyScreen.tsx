@@ -139,9 +139,10 @@ function DifficultyPicker({
           <label key={level} className={`difficulty-option${level === difficulty ? " on" : ""}`}>
             <input type="radio" name="difficulty" value={level} checked={level === difficulty} onChange={() => onPick(level)} />
             <span className="difficulty-name">{t(`lobby.difficulty.${level}`)}</span>
-            <span className="difficulty-clock" dir="ltr" aria-label={t("lobby.difficulty.clock", { clock: formatClock(MATCH_MS[level] / 1000) })}>
+            <span className="difficulty-clock" dir="ltr" aria-hidden>
               {formatClock(MATCH_MS[level] / 1000)}
             </span>
+            <span className="sr-only">{t("lobby.difficulty.clock", { clock: formatClock(MATCH_MS[level] / 1000) })}</span>
           </label>
         ))}
       </div>

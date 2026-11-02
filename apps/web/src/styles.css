@@ -369,6 +369,7 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
 .match-over.won { border-top-color: var(--green); }
 .match-over-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 .match-over.won .eyebrow { color: var(--green); }
+.match-over.lost .eyebrow { color: var(--red); }
 
 .pause-screen {
   position: absolute;
@@ -384,7 +385,6 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
 .pause-panel h1, .pause-panel p { margin: 0; }
 .pause-panel .eyebrow { color: var(--amber); }
 .pause-takeover { display: grid; gap: 8px; width: 100%; text-align: start; }
-.match-over.lost .eyebrow { color: var(--red); }
 
 @media (max-width: 640px) {
   .screen { padding: 20px 12px; }
@@ -409,7 +409,7 @@ h1:lang(ar), .eyebrow:lang(ar), .divider:lang(ar), .tag:lang(ar), .crew-role:lan
 .crew-role:lang(ar) { font-size: 0.8rem; }
 .player.empty:lang(ar) { font-style: normal; }
 
-/* Voice */
+/* Difficulty */
 .difficulty-panel {
   width: min(960px, 100%);
   box-sizing: border-box;
@@ -443,11 +443,12 @@ h1:lang(ar), .eyebrow:lang(ar), .divider:lang(ar), .tag:lang(ar), .crew-role:lan
 .difficulty-option.on { border-color: var(--amber); background: rgb(245 165 36 / 0.14); box-shadow: inset 0 0 0 1px var(--amber); }
 .difficulty-option input { position: absolute; inset: 0; margin: 0; opacity: 0; pointer-events: none; }
 .difficulty-panel:disabled .difficulty-option { cursor: default; }
-.difficulty-panel:disabled .difficulty-option:not(.on) { opacity: 0.55; }
+.difficulty-panel:disabled .difficulty-option:not(.on) { border-color: transparent; background: #20232c; }
 .difficulty-name { font-weight: 600; }
 .difficulty-clock { font-family: var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
 .difficulty-option.on .difficulty-clock { color: var(--amber); }
 
+/* Voice */
 .voice-panel {
   width: min(960px, 100%);
   box-sizing: border-box;
