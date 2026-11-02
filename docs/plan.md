@@ -45,7 +45,7 @@ rooms     code, status: lobby|playing|paused|won|lost, seed, difficulty,
           endsAt, remainingMs (when paused), strikes, explodeJobId
 seats     roomId, role, sessionId, name, ready
 modules   roomId, index, kind, solved, progress (cuts, presses, valve since + hold/release/reset events)
-pings     roomId, fromRole, target, createdAt
+pings     roomId, fromRole, ping: module|wire|key|manual target ref or emote (deleted 5 s after it is sent)
 signals   roomId, fromRole, toRole, kind: offer|answer|ice, payload
 presence  @convex-dev/presence component
 ```
@@ -56,8 +56,8 @@ presence  @convex-dev/presence component
 - **Timer:** `start` sets `endsAt` and `scheduler.runAt(endsAt, explode)`; clients render the countdown locally; `explode` no-ops unless still playing.
 - **Pause:** presence detects a drop → cancel the explode job, store `remainingMs`; resume reschedules.
 - **Valve:** pressure is a pure function of (seed, start, hold/release/reset events) in `packages/rules`. Queries return the events and gauge parameters, never a current pressure. The Scanner animates it in `useFrame` with a server-clock offset (lowest-RTT of 5 calls to the `serverTime` mutation). `holdValve` and `releaseValve` stamp server time on arrival; the release recomputes the pressure and solves or strikes. Tolerance: the band plus 250 ms of venting either side. Hold and release are both delayed by the trip to the server, so steady latency cancels out (left over: rise × latency, about 0.02 points at 150 ms); the window covers the Scanner's call and the Operator's reaction. An untended valve bursts at 100: `scheduleBurst` schedules `burstValve` after every change, and the job recomputes, so a stale one does nothing.
-- **Voice:** 3-way P2P WebRTC mesh; signaling via the `signals` table (filtered by recipient, deleted after read); Cloudflare TURN credentials minted by a Convex action.
-- **Pings:** point-at pings and quick emotes synced through Convex.
+- **Voice:** 3-way P2P WebRTC mesh between seated players, from the lobby on; signaling via the `signals` table (filtered by recipient, deleted after read). Perfect negotiation: the later seat in operator, analyst, scanner order is polite. Each payload names the sending and receiving RTCPeerConnection, so a reloaded player's fresh offer restarts the link and leftovers for an old connection are dropped. `voice.iceServers` (seated players only) mints Cloudflare TURN credentials when `CLOUDFLARE_TURN_KEY_ID` and `CLOUDFLARE_TURN_API_TOKEN` are set, else public STUN. Open mic with mute (M), echo cancellation, noise suppression and auto gain; a denied mic leaves the player listening. Each link also opens an unordered, no-retransmit data channel (negotiated id 0) carrying `{kind, seq, at}` messages; M7 sends heartbeats, M8 adds motion.
+- **Pings:** the Operator and Scanner point at a wire, key or module (right-click, or the Ping button then a click); the Analyst points at a manual section. A ping stores a target ref only, so it can't leak colors or tags. Quick emotes from a wheel. Both show as toasts in the sender's color, last 5 s, and a seat may have 3 live at once.
 
 ## Milestones
 
