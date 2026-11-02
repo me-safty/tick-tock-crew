@@ -18,7 +18,7 @@ export function usePings(code: string) {
   const pings = useQuery(api.pings.list, { code, sessionId }) ?? EMPTY
   const point = useMutation(api.pings.point)
   const emote = useMutation(api.pings.emote)
-  const { error, run } = useMutationError()
+  const { error, run } = useMutationError({ transient: true })
   return {
     pings,
     error,
