@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next"
-import type { Role } from "./protocol"
+import type { MicState, Role } from "./protocol"
 import { useVoice } from "./VoiceProvider"
 
 type VoiceState = "speaking" | "idle" | "connecting" | "muted" | "listening"
@@ -8,9 +8,14 @@ function useVoiceState(role: Role): VoiceState | null {
   const { me, mic, muted, speaking, links } = useVoice()
   // A player without a seat isn't in the call, so there is nothing to show.
   if (me === null) return null
-  const status = role === me ? null : links.get(role)
-  if (status && status.connection !== "connected") return "connecting"
-  const micState = status ? status.mic : mic.kind !== "on" ? "off" : muted ? "muted" : "live"
+  let micState: MicState
+  if (role === me) {
+    micState = mic.kind !== "on" ? "off" : muted ? "muted" : "live"
+  } else {
+    const status = links.get(role)
+    if (status?.connection !== "connected") return "connecting"
+    micState = status.mic
+  }
   if (micState === "off") return "listening"
   if (micState === "muted") return "muted"
   return speaking.has(role) ? "speaking" : "idle"
