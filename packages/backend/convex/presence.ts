@@ -1,5 +1,6 @@
 import { v } from "convex/values"
 import { mutation, query } from "./_generated/server"
+import { resumeIfPresent } from "./pause"
 import { getRoom, presence } from "./rooms"
 
 // The hook's beforeunload beacon calls `presence:disconnect`, so these must live in convex/presence.ts.
@@ -12,7 +13,10 @@ export const heartbeat = mutation({
   returns: v.object({ roomToken: v.string(), sessionToken: v.string() }),
   handler: async (ctx, { roomId, userId, sessionId, interval }) => {
     const room = await getRoom(ctx, roomId)
-    return presence.heartbeat(ctx, room.code, userId, sessionId, Math.min(interval, MAX_HEARTBEAT_INTERVAL_MS))
+    const tokens = await presence.heartbeat(ctx, room.code, userId, sessionId, Math.min(interval, MAX_HEARTBEAT_INTERVAL_MS))
+    // A player coming back is what ends a pause.
+    await resumeIfPresent(ctx, room)
+    return tokens
   },
 })
 

@@ -40,6 +40,8 @@ export default defineSchema({
       // Rooms made before difficulty presets have none and play on normal.
       v.object({ ...roomFields, status: v.literal("lobby"), difficulty: v.optional(difficulty) }),
       v.object({ ...matchFields, status: v.literal("playing"), explodeJobId: v.id("_scheduled_functions") }),
+      // Waiting for a player who dropped; the clock stopped at pausedAt.
+      v.object({ ...matchFields, status: v.literal("paused"), pausedAt: v.number() }),
       v.object({ ...matchFields, status: v.union(v.literal("won"), v.literal("lost")) }),
     ),
   ).index("by_code", ["code"]),

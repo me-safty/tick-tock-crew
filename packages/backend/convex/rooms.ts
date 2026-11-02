@@ -44,7 +44,7 @@ async function getLobbyRoom(ctx: QueryCtx, code: string) {
   return room
 }
 
-function roomSeats(ctx: QueryCtx, roomId: Id<"rooms">) {
+export function roomSeats(ctx: QueryCtx, roomId: Id<"rooms">) {
   return ctx.db
     .query("seats")
     .withIndex("by_room_and_role", (q) => q.eq("roomId", roomId))
@@ -66,7 +66,7 @@ export async function getSeat(ctx: QueryCtx, { code, sessionId }: { readonly cod
   return { room, seat }
 }
 
-async function onlineSessions(ctx: QueryCtx, code: string) {
+export async function onlineSessions(ctx: QueryCtx, code: string) {
   return new Set((await presence.listRoom(ctx, code, true)).map((p) => p.userId))
 }
 
@@ -97,7 +97,7 @@ async function getHostedLobby(ctx: QueryCtx, { code, sessionId }: { readonly cod
   return { room, seats, online }
 }
 
-function parseName(name: string) {
+export function parseName(name: string) {
   const trimmed = name.trim()
   if (trimmed.length === 0 || trimmed.length > MAX_NAME_LENGTH) {
     throw appError({ code: "NICKNAME_LENGTH", max: MAX_NAME_LENGTH })
@@ -231,7 +231,7 @@ export const lobby = query({
     v.null(),
     v.object({
       code: v.string(),
-      status: v.union(v.literal("lobby"), v.literal("playing"), v.literal("won"), v.literal("lost")),
+      status: v.union(v.literal("lobby"), v.literal("playing"), v.literal("paused"), v.literal("won"), v.literal("lost")),
       difficulty,
       isHost: v.boolean(),
       onlineCount: v.number(),

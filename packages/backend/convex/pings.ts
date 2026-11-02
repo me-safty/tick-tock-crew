@@ -18,7 +18,8 @@ type Seat = Doc<"seats">
 
 /** The Operator and Scanner point at the bomb; the Analyst, who never sees it, points at the manual. */
 function checkTarget({ room, seat, target }: { room: Doc<"rooms">; seat: Seat; target: PingTarget }) {
-  if (room.status !== "playing") throw appError({ code: "MATCH_OVER" })
+  // The crew can still point things out while they wait for a player.
+  if (room.status !== "playing" && room.status !== "paused") throw appError({ code: "MATCH_OVER" })
   if ((target.kind === "manual") !== (seat.role === "analyst")) throw appError({ code: "PING_NOT_ALLOWED" })
   if (target.kind === "manual") return
   const index = (value: number) => Number.isInteger(value) && value >= 0

@@ -250,6 +250,8 @@
     "HOST_ONLY": "Only the host can start the match",
     "PLAYERS_NOT_READY": "All 3 players must be seated, online and ready",
     "MATCH_OVER": "The match is over",
+    "MATCH_PAUSED": "The match is paused until everyone is back",
+    "ALREADY_SEATED": "You already have a seat",
     "OPERATOR_ONLY": "Only the Operator can touch the bomb",
     "TIME_UP": "Time is up",
     "MODULE_NOT_FOUND": "That module doesn't exist",
