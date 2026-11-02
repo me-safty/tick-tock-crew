@@ -1,9 +1,9 @@
 import { v } from "convex/values"
-import { mutation, query } from "./_generated/server"
+import { mutation } from "./_generated/server"
 import { resumeIfPresent } from "./pause"
 import { getRoom, presence } from "./rooms"
 
-// The hook's beforeunload beacon calls `presence:disconnect`, so these must live in convex/presence.ts.
+// The web app's pagehide beacon calls `presence:disconnect` by path, so these must live in convex/presence.ts.
 
 // A session times out after 2.5 intervals; the cap stops a client from staying "online" forever.
 const MAX_HEARTBEAT_INTERVAL_MS = 30_000
@@ -18,14 +18,6 @@ export const heartbeat = mutation({
     await resumeIfPresent(ctx, room)
     return tokens
   },
-})
-
-// usePresence subscribes to this list, but its userIds are guest sessionIds, which act as credentials.
-// The lobby query joins presence server-side instead, so this returns nothing.
-export const list = query({
-  args: { roomToken: v.string() },
-  returns: v.array(v.object({ userId: v.string(), online: v.boolean(), lastDisconnected: v.number() })),
-  handler: () => [],
 })
 
 export const disconnect = mutation({
