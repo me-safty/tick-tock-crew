@@ -13,16 +13,21 @@ type PeerLinkOptions = {
   readonly onState: (state: RTCPeerConnectionState) => void
 }
 
+type Connection = { readonly pc: RTCPeerConnection; readonly channel: RTCDataChannel }
+
 /**
- * One RTCPeerConnection to one other seat, negotiated with the perfect negotiation pattern, carrying our mic and
- * an unreliable data channel.
+ * One link to one other seat, carrying our mic and an unreliable data channel, negotiated with the perfect
+ * negotiation pattern. When both sides make their first offer at once, the polite side answers on a fresh
+ * RTCPeerConnection instead of rolling back: Chrome can reject the data channel's m-line after rolling back an offer
+ * that carried it, which leaves the link with no transport at all.
  */
 export class PeerLink {
+  /** Names this end of the link in signals; it outlives the RTCPeerConnections the link replaces. */
   readonly localId = crypto.randomUUID()
   remoteId: string | null
-  private readonly pc: RTCPeerConnection
-  private readonly channel: RTCDataChannel
   private readonly options: PeerLinkOptions
+  private connection: Connection
+  private track: MediaStreamTrack | null
   private makingOffer = false
   private ignoreOffer = false
   private queue: Promise<void> = Promise.resolve()
@@ -33,30 +38,8 @@ export class PeerLink {
   constructor(options: PeerLinkOptions) {
     this.options = options
     this.remoteId = options.remoteId
-    const pc = new RTCPeerConnection({ iceServers: options.iceServers })
-    this.pc = pc
-    // Negotiated with a fixed id on both sides, so glare never leaves two channels.
-    this.channel = pc.createDataChannel("crew", { negotiated: true, id: 0, ordered: false, maxRetransmits: 0 })
-    this.channel.onmessage = ({ data }) => this.take(decodeMessage(data))
-    if (options.track) pc.addTrack(options.track)
-
-    pc.onnegotiationneeded = () => {
-      this.makingOffer = true
-      pc.setLocalDescription()
-        .then(() => this.sendDescription())
-        .catch(() => undefined)
-        .finally(() => {
-          this.makingOffer = false
-        })
-    }
-    pc.onicecandidate = ({ candidate }) => {
-      if (candidate) options.send({ kind: "ice", from: this.localId, to: this.remoteId, candidate: candidate.toJSON() })
-    }
-    pc.oniceconnectionstatechange = () => {
-      if (pc.iceConnectionState === "failed") pc.restartIce()
-    }
-    pc.onconnectionstatechange = () => options.onState(pc.connectionState)
-    pc.ontrack = ({ track }) => options.onStream(new MediaStream([track]))
+    this.track = options.track
+    this.connection = this.connect()
     this.heartbeat = setInterval(() => this.post({ kind: "heartbeat", seq: ++this.sentSeq, at: Date.now() }), HEARTBEAT_MS)
   }
 
@@ -67,22 +50,54 @@ export class PeerLink {
 
   /** Sends our mic on this link, or silence for null. A link without a sender adds one and renegotiates. */
   setTrack(track: MediaStreamTrack | null) {
-    const sender = this.pc
+    this.track = track
+    const { pc } = this.connection
+    const sender = pc
       .getTransceivers()
       .find(({ receiver, direction }) => receiver.track.kind === "audio" && (direction === "sendrecv" || direction === "sendonly"))
       ?.sender
     if (sender) void sender.replaceTrack(track).catch(() => undefined)
-    else if (track) this.pc.addTrack(track)
+    else if (track) pc.addTrack(track)
   }
 
   close() {
     clearInterval(this.heartbeat)
-    this.channel.close()
-    this.pc.close()
+    this.connection.channel.close()
+    this.connection.pc.close()
+  }
+
+  private connect(): Connection {
+    const { options } = this
+    const pc = new RTCPeerConnection({ iceServers: options.iceServers })
+    const current = () => this.connection.pc === pc
+    // Negotiated with a fixed id on both sides, so glare never leaves two channels.
+    const channel = pc.createDataChannel("crew", { negotiated: true, id: 0, ordered: false, maxRetransmits: 0 })
+    channel.onmessage = ({ data }) => this.take(decodeMessage(data))
+    if (this.track) pc.addTrack(this.track)
+    pc.onnegotiationneeded = () => {
+      if (!current()) return
+      this.makingOffer = true
+      pc.setLocalDescription()
+        .then(() => this.sendDescription())
+        .catch(() => undefined)
+        .finally(() => {
+          this.makingOffer = false
+        })
+    }
+    pc.onicecandidate = ({ candidate }) => {
+      if (candidate && current()) options.send({ kind: "ice", from: this.localId, to: this.remoteId, candidate: candidate.toJSON() })
+    }
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === "failed") pc.restartIce()
+    }
+    pc.onconnectionstatechange = () => current() && options.onState(pc.connectionState)
+    pc.ontrack = ({ track }) => current() && options.onStream(new MediaStream([track]))
+    return { pc, channel }
   }
 
   private post(message: ChannelMessage) {
-    if (this.channel.readyState === "open") this.channel.send(encodeMessage(message))
+    const { channel } = this.connection
+    if (channel.readyState === "open") channel.send(encodeMessage(message))
   }
 
   private take(message: ChannelMessage | null) {
@@ -91,28 +106,34 @@ export class PeerLink {
   }
 
   private sendDescription() {
-    const description = this.pc.localDescription
+    const description = this.connection.pc.localDescription
     if (description?.type !== "offer" && description?.type !== "answer") return
     this.options.send({ kind: description.type, from: this.localId, to: this.remoteId, sdp: description.sdp })
   }
 
   private async handle(signal: Signal) {
-    const { pc } = this
     if (signal.kind === "ice") {
       try {
-        await pc.addIceCandidate(signal.candidate)
+        await this.connection.pc.addIceCandidate(signal.candidate)
       } catch (error) {
         // Candidates for an offer we ignored fail to apply; anything else is a real failure.
         if (!this.ignoreOffer) throw error
       }
       return
     }
+    const { pc } = this.connection
     const collision = signal.kind === "offer" && (this.makingOffer || pc.signalingState !== "stable")
     this.ignoreOffer = !this.options.polite && collision
     if (this.ignoreOffer) return
-    await pc.setRemoteDescription({ type: signal.kind, sdp: signal.sdp })
+    if (collision && pc.remoteDescription === null) {
+      this.connection.channel.close()
+      pc.close()
+      this.makingOffer = false
+      this.connection = this.connect()
+    }
+    await this.connection.pc.setRemoteDescription({ type: signal.kind, sdp: signal.sdp })
     if (signal.kind === "offer") {
-      await pc.setLocalDescription()
+      await this.connection.pc.setLocalDescription()
       this.sendDescription()
     }
   }
