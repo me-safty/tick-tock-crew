@@ -1,11 +1,11 @@
 import { Presence } from "@convex-dev/presence"
-import { type Difficulty, generateBomb, initialState } from "@tick-tock-crew/rules"
+import { type Difficulty, generateBomb, initialState, MATCH_MS } from "@tick-tock-crew/rules"
 import { v } from "convex/values"
 import { components, internal } from "./_generated/api"
 import type { Doc, Id } from "./_generated/dataModel"
 import { appError } from "./errors"
 import { mutation, query, type QueryCtx } from "./_generated/server"
-import { role } from "./schema"
+import { difficulty, role } from "./schema"
 import { scheduleBurst } from "./valve"
 
 // Presence rooms are keyed by room code and users by guest sessionId.
@@ -17,8 +17,7 @@ const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ"
 const CODE_LENGTH = 4
 const MAX_CODE_ATTEMPTS = 10
 const MAX_NAME_LENGTH = 20
-const MATCH_DURATION_MS = 5 * 60_000
-const DIFFICULTY: Difficulty = "normal"
+const DEFAULT_DIFFICULTY: Difficulty = "normal"
 
 function randomCode() {
   return Array.from({ length: CODE_LENGTH }, () =>
@@ -71,6 +70,33 @@ async function onlineSessions(ctx: QueryCtx, code: string) {
   return new Set((await presence.listRoom(ctx, code, true)).map((p) => p.userId))
 }
 
+/**
+ * Who hosts the room: its creator while they are here, else the first present player by seat, else anyone
+ * present. Hosting follows whoever is around, so a room whose host left never gets stuck.
+ */
+function hostOf({
+  room,
+  seats,
+  online,
+}: {
+  readonly room: Doc<"rooms">
+  readonly seats: ReadonlyArray<Doc<"seats">>
+  readonly online: ReadonlySet<string>
+}) {
+  if (online.has(room.hostSessionId)) return room.hostSessionId
+  const seated = ROLES.flatMap((seatRole) => seats.filter((seat) => seat.role === seatRole && online.has(seat.sessionId)))
+  return seated[0]?.sessionId ?? online.values().next().value ?? room.hostSessionId
+}
+
+/** The lobby room, its seats and who is online, for functions only the host may call. */
+async function getHostedLobby(ctx: QueryCtx, { code, sessionId }: { readonly code: string; readonly sessionId: string }) {
+  const room = await getLobbyRoom(ctx, code)
+  const seats = await roomSeats(ctx, room._id)
+  const online = await onlineSessions(ctx, room.code)
+  if (hostOf({ room, seats, online }) !== sessionId) throw appError({ code: "HOST_ONLY" })
+  return { room, seats, online }
+}
+
 function parseName(name: string) {
   const trimmed = name.trim()
   if (trimmed.length === 0 || trimmed.length > MAX_NAME_LENGTH) {
@@ -86,7 +112,7 @@ export const createRoom = mutation({
     for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
       const code = randomCode()
       if (await findRoom(ctx, code)) continue
-      await ctx.db.insert("rooms", { code, hostSessionId: sessionId, status: "lobby" })
+      await ctx.db.insert("rooms", { code, hostSessionId: sessionId, status: "lobby", difficulty: DEFAULT_DIFFICULTY })
       return code
     }
     throw appError({ code: "NO_FREE_ROOM_CODE" })
@@ -150,30 +176,38 @@ export const setReady = mutation({
   },
 })
 
+export const setDifficulty = mutation({
+  args: { code: v.string(), sessionId: v.string(), difficulty },
+  returns: v.null(),
+  handler: async (ctx, { difficulty, ...args }) => {
+    const { room } = await getHostedLobby(ctx, args)
+    await ctx.db.patch("rooms", room._id, { difficulty })
+    return null
+  },
+})
+
 export const startMatch = mutation({
   args: { code: v.string(), sessionId: v.string() },
   returns: v.null(),
-  handler: async (ctx, { code, sessionId }) => {
-    const room = await getLobbyRoom(ctx, code)
-    if (room.hostSessionId !== sessionId) throw appError({ code: "HOST_ONLY" })
-    const seats = await roomSeats(ctx, room._id)
-    const online = await onlineSessions(ctx, room.code)
+  handler: async (ctx, args) => {
+    const { room, seats, online } = await getHostedLobby(ctx, args)
     if (seats.length < ROLES.length || seats.some((seat) => !seat.ready || !online.has(seat.sessionId))) {
       throw appError({ code: "PLAYERS_NOT_READY" })
     }
     const seed = Math.floor(Math.random() * 2 ** 32)
+    const difficulty = room.difficulty ?? DEFAULT_DIFFICULTY
     const startedAt = Date.now()
-    const endsAt = startedAt + MATCH_DURATION_MS
+    const endsAt = startedAt + MATCH_MS[difficulty]
     const explodeJobId = await ctx.scheduler.runAt(endsAt, internal.match.explode, { roomId: room._id })
     await ctx.db.patch("rooms", room._id, {
       status: "playing",
       seed,
-      difficulty: DIFFICULTY,
+      difficulty,
       endsAt,
       strikes: 0,
       explodeJobId,
     })
-    const bomb = generateBomb(seed, DIFFICULTY)
+    const bomb = generateBomb(seed, difficulty)
     const state = initialState(bomb, { startedAt })
     for (const [index, module] of state.modules.entries()) {
       await ctx.db.insert("modules", { roomId: room._id, index, ...module })
@@ -198,6 +232,7 @@ export const lobby = query({
     v.object({
       code: v.string(),
       status: v.union(v.literal("lobby"), v.literal("playing"), v.literal("won"), v.literal("lost")),
+      difficulty,
       isHost: v.boolean(),
       onlineCount: v.number(),
       seats: v.array(v.object({ role, player: v.union(v.null(), player) })),
@@ -208,10 +243,12 @@ export const lobby = query({
     if (!room) return null
     const seats = await roomSeats(ctx, room._id)
     const online = await onlineSessions(ctx, room.code)
+    const host = hostOf({ room, seats, online })
     return {
       code: room.code,
       status: room.status,
-      isHost: room.hostSessionId === sessionId,
+      difficulty: room.difficulty ?? DEFAULT_DIFFICULTY,
+      isHost: host === sessionId,
       onlineCount: online.size,
       seats: ROLES.map((seatRole) => {
         const seat = seats.find((s) => s.role === seatRole)
@@ -222,7 +259,7 @@ export const lobby = query({
                 name: seat.name,
                 ready: seat.ready,
                 online: online.has(seat.sessionId),
-                isHost: seat.sessionId === room.hostSessionId,
+                isHost: seat.sessionId === host,
                 isYou: seat.sessionId === sessionId,
               }
             : null,

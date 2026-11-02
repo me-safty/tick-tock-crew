@@ -135,6 +135,57 @@ describe("startMatch", () => {
   })
 })
 
+describe("difficulty", () => {
+  test("starts on normal; the host picks another and the match runs on its timer", async () => {
+    const { t, code } = await setup()
+    await seatAll(t, code, true)
+    expect((await t.query(api.rooms.lobby, { code, sessionId: "b" }))?.difficulty).toBe("normal")
+    await t.mutation(api.rooms.setDifficulty, { code, sessionId: "host", difficulty: "hard" })
+    expect((await t.query(api.rooms.lobby, { code, sessionId: "b" }))?.difficulty).toBe("hard")
+
+    const startedAt = Date.now()
+    await t.mutation(api.rooms.startMatch, { code, sessionId: "host" })
+    const room = await t.run((ctx) => ctx.db.query("rooms").first())
+    expect(room).toMatchObject({ status: "playing", difficulty: "hard" })
+    expect(room?.status === "playing" && room.endsAt - startedAt).toBeGreaterThanOrEqual(4 * 60_000)
+    expect(room?.status === "playing" && room.endsAt - Date.now()).toBeLessThanOrEqual(4 * 60_000)
+  })
+
+  test("only the host picks it", async () => {
+    const { t, code } = await setup()
+    await seatAll(t, code, false)
+    await expect(t.mutation(api.rooms.setDifficulty, { code, sessionId: "b", difficulty: "easy" })).rejects.toMatchObject({
+      data: { code: "HOST_ONLY" },
+    })
+  })
+})
+
+describe("host", () => {
+  test("passes to the first present seat when the host leaves, and back when they return", async () => {
+    const { t, code } = await setup()
+    await seatAll(t, code, true)
+    const { sessionToken } = await goOnline(t, code, "host")
+    await t.mutation(api.presence.disconnect, { sessionToken })
+
+    const lobby = await t.query(api.rooms.lobby, { code, sessionId: "b" })
+    expect(lobby?.isHost).toBe(true)
+    expect(lobby?.seats.map((seat) => seat.player?.isHost)).toEqual([false, true, false])
+    await t.mutation(api.rooms.setDifficulty, { code, sessionId: "b", difficulty: "easy" })
+    await expect(t.mutation(api.rooms.startMatch, { code, sessionId: "host" })).rejects.toMatchObject({
+      data: { code: "HOST_ONLY" },
+    })
+
+    await goOnline(t, code, "host")
+    expect((await t.query(api.rooms.lobby, { code, sessionId: "host" }))?.isHost).toBe(true)
+  })
+
+  test("passes to someone present when no seated player is", async () => {
+    const { t, code } = await setup()
+    await goOnline(t, code, "watcher")
+    expect((await t.query(api.rooms.lobby, { code, sessionId: "watcher" }))?.isHost).toBe(true)
+  })
+})
+
 describe("presence", () => {
   test("shows a seat online while its player heartbeats and offline after they leave", async () => {
     const { t, code } = await setup()
