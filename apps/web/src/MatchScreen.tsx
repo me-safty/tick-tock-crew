@@ -154,14 +154,14 @@ function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: 
               {operator.error ?? pings.error}
             </p>
           )}
-          {pinging && canPingBomb ? (
+          {paused ? null : pinging && canPingBomb ? (
             <p className="hint">{t("ping.hint")}</p>
           ) : (
             <Hint view={match.view} manualOpen={manualOpen} onOpenManual={() => setManualOpen(true)} />
           )}
         </footer>
       )}
-      {match.view?.role === "analyst" && manualOpen && !ended && (
+      {match.view?.role === "analyst" && manualOpen && !ended && !paused && (
         <ManualSheet
           manual={match.view.manual}
           pinged={pingedSections(pings.pings)}
