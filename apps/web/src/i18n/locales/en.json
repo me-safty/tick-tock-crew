@@ -281,5 +281,13 @@
     "PING_TARGET_NOT_FOUND": "There's nothing there to point at",
     "TOO_MANY_PINGS": "Slow down: wait a moment before the next ping",
     "NICKNAME_LENGTH": "Pick a nickname of 1 to {{max}} characters"
+  },
+  "pause": {
+    "eyebrow": "Paused",
+    "title": "Waiting for the crew",
+    "waitingFor": "Waiting for {{seats}} to come back.",
+    "seat": "the {{role}} ({{name}})",
+    "timerStopped": "The timer is stopped. It starts again as soon as everyone is back.",
+    "takeOver": "Take over as {{role}}"
   }
 }

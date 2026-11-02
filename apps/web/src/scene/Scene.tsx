@@ -48,7 +48,7 @@ export function Scene({ match, finale, ...roleProps }: SceneProps) {
   const reducedMotion = usePrefersReducedMotion()
   const view = match.view
   const seat = SEATS[view?.role ?? "spectator"]
-  const ending = finale && match.status !== "playing" ? match.status : null
+  const ending = finale && (match.status === "won" || match.status === "lost") ? match.status : null
   return (
     <Canvas className="scene" dpr={[1, 1.75]} camera={{ fov: seat.fov, near: 0.05, far: 40 }}>
       <color attach="background" args={["#11141c"]} />
@@ -151,7 +151,15 @@ function RoleSet({
                   case "dial":
                     return <ScannerDial key={index} index={index} module={module} />
                   case "valve":
-                    return <ScannerValve key={index} index={index} module={module} clockOffset={clockOffset} />
+                    return (
+                      <ScannerValve
+                        key={index}
+                        index={index}
+                        module={module}
+                        clockOffset={clockOffset}
+                        pausedAt={match.status === "paused" ? match.pausedAt : null}
+                      />
+                    )
                   default: {
                     const _exhaustive: never = module
                     return _exhaustive

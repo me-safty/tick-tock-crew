@@ -2,7 +2,7 @@ import { RoundedBox } from "@react-three/drei"
 import { useFrame } from "@react-three/fiber"
 import { MAX_STRIKES } from "@tick-tock-crew/rules"
 import { type ReactNode, useEffect, useMemo, useRef } from "react"
-import { formatClock, secondsLeft, URGENT_SECONDS } from "../clock"
+import { clockTime, formatClock, secondsLeft, URGENT_SECONDS } from "../clock"
 import type { Match, ViewOf } from "../roles"
 import { createCanvasTexture, MONO_FONT, SANS_FONT, useDrawnTexture, useLabelText } from "./labels"
 import { BOMB_POSITION, CASE, FACE, FACE_Z, FOOTER, HEADER, MODULE_SLOTS, type Rect } from "./layout"
@@ -10,7 +10,6 @@ import { Ink, INK, Paint, useXray, XrayContext } from "./materials"
 import { usePrefersReducedMotion } from "./motion"
 
 type BombView = ViewOf<"operator"> | ViewOf<"scanner">
-type MatchClock = Pick<Match, "status" | "endsAt" | "strikes">
 
 const PAINT = {
   shell: "#e9b53f",
@@ -31,7 +30,7 @@ export function Bomb({
   children,
 }: {
   readonly view: BombView
-  readonly match: MatchClock
+  readonly match: Match
   /** The modules, each placed in its own slot from MODULE_SLOTS. */
   readonly children: ReactNode
 }) {
@@ -40,7 +39,7 @@ export function Bomb({
       <group position={BOMB_POSITION}>
         <Casing />
         <group position={[0, 0, FACE_Z]}>
-          <TimerDisplay status={match.status} endsAt={match.endsAt} />
+          <TimerDisplay match={match} />
           <StrikeLamps strikes={match.strikes} />
           <SerialPlate serial={view.role === "operator" ? view.serial : null} />
           {MODULE_SLOTS.map((slot, index) => {
@@ -118,6 +117,8 @@ function timerFace({ status, seconds, blinkOff, label }: TimerState): LedFace {
       return { text: label.t("scene.boom"), color: LED_RED }
     case "playing":
       return { text: formatClock(seconds), color: seconds <= URGENT_SECONDS && blinkOff ? "#6b1a1c" : LED_RED }
+    case "paused":
+      return { text: formatClock(seconds), color: LED_RED }
     default: {
       const _exhaustive: never = status
       return _exhaustive
@@ -126,7 +127,7 @@ function timerFace({ status, seconds, blinkOff, label }: TimerState): LedFace {
 }
 
 /** Counts down from `endsAt` on this device, redrawing only when the shown text changes. */
-function TimerDisplay({ status, endsAt }: Pick<MatchClock, "status" | "endsAt">) {
+function TimerDisplay({ match }: { readonly match: Match }) {
   const reducedMotion = usePrefersReducedMotion()
   const label = useLabelText()
   const canvas = useMemo(() => createCanvasTexture({ width: 512, height: 136 }), [])
@@ -135,8 +136,8 @@ function TimerDisplay({ status, endsAt }: Pick<MatchClock, "status" | "endsAt">)
   useFrame(() => {
     const now = Date.now()
     const face = timerFace({
-      status,
-      seconds: secondsLeft(endsAt, now),
+      status: match.status,
+      seconds: secondsLeft(match.endsAt, clockTime(match, now)),
       blinkOff: !reducedMotion && Math.floor(now / 500) % 2 === 1,
       label,
     })

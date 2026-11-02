@@ -293,10 +293,13 @@ export function ScannerValve({
   index,
   module,
   clockOffset,
+  pausedAt,
 }: {
   readonly index: number
   readonly module: ScannerModule
   readonly clockOffset: RefObject<number>
+  /** While the match is paused, the server time the needle stopped at. */
+  readonly pausedAt: number | null
 }) {
   const rect = slotRect(index)
   return (
@@ -306,7 +309,7 @@ export function ScannerValve({
         <Wheel />
       </group>
       <Spring coils={module.coils} />
-      <PressureGauge module={module} clockOffset={clockOffset} />
+      <PressureGauge module={module} clockOffset={clockOffset} pausedAt={pausedAt} />
     </group>
   )
 }
@@ -360,7 +363,15 @@ function drawGaugeFace(context: CanvasRenderingContext2D, { width }: { width: nu
   for (const pressure of [0, MAX_PRESSURE / 2, MAX_PRESSURE]) context.fillText(String(pressure), ...at(pressure, radius - 112))
 }
 
-function PressureGauge({ module, clockOffset }: { readonly module: ScannerModule; readonly clockOffset: RefObject<number> }) {
+function PressureGauge({
+  module,
+  clockOffset,
+  pausedAt,
+}: {
+  readonly module: ScannerModule
+  readonly clockOffset: RefObject<number>
+  readonly pausedAt: number | null
+}) {
   const face = useDrawnTexture({ width: GAUGE_PX, height: GAUGE_PX, key: "face", draw: drawGaugeFace })
   const readout = useMemo(() => createCanvasTexture({ width: 288, height: 104 }), [])
   useEffect(() => () => readout.texture.dispose(), [readout])
@@ -369,8 +380,8 @@ function PressureGauge({ module, clockOffset }: { readonly module: ScannerModule
   const { gauge, since, events, solved } = module
   const progress = useMemo(() => ({ since, events }), [since, events])
   const venting = useMemo(() => !solved && isHeld(gauge, progress), [gauge, progress, solved])
-  // A defused valve stays where it was sealed.
-  const frozenAt = solved ? events.at(-1)?.at : undefined
+  // A defused valve stays where it was sealed; a paused one where the clock stopped.
+  const frozenAt = solved ? events.at(-1)?.at : (pausedAt ?? undefined)
 
   useFrame((_, delta) => {
     const pressure = pressureAt(gauge, progress, frozenAt ?? Date.now() + clockOffset.current)

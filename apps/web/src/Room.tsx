@@ -49,6 +49,7 @@ function RoomScreen({ lobby }: { readonly lobby: Lobby }) {
     case "lobby":
       return <LobbyScreen lobby={lobby} />
     case "playing":
+    case "paused":
     case "won":
     case "lost":
       return <MatchScreen lobby={lobby} />

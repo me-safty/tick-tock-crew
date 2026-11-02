@@ -369,6 +369,21 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
 .match-over.won { border-top-color: var(--green); }
 .match-over-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 .match-over.won .eyebrow { color: var(--green); }
+
+.pause-screen {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 120px 16px 32px;
+  box-sizing: border-box;
+  background: rgb(10 12 16 / 0.55);
+  backdrop-filter: blur(2px);
+}
+.pause-panel { text-align: center; justify-items: center; gap: 12px; border-top: 4px solid var(--amber); }
+.pause-panel h1, .pause-panel p { margin: 0; }
+.pause-panel .eyebrow { color: var(--amber); }
+.pause-takeover { display: grid; gap: 8px; width: 100%; text-align: start; }
 .match-over.lost .eyebrow { color: var(--red); }
 
 @media (max-width: 640px) {
