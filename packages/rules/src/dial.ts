@@ -50,6 +50,7 @@ export function generateDial(rng: Rng, { difficulty }: { readonly difficulty: ke
 }
 
 export const DIAL_MANUAL: ManualSection = {
+  module: "dial",
   title: "dial.title",
   blocks: [
     { kind: "text", text: "dial.intro" },

@@ -69,7 +69,8 @@ function Knob({ dial, active }: { readonly dial: DialControl; readonly active: b
 
   const grab = (event: ThreeEvent<PointerEvent>) => {
     event.stopPropagation()
-    if (!active) return
+    // A right-click is a ping, never a turn.
+    if (!active || event.nativeEvent.button !== 0) return
     const { pointerId, clientX, clientY } = event.nativeEvent
     const from = dial.frequency
     const move = (moved: PointerEvent) => {

@@ -15,6 +15,7 @@
         "@tick-tock-crew/backend": "workspace:*",
         "@tick-tock-crew/rules": "workspace:*",
         "convex": "catalog:",
+        "effect": "catalog:",
         "i18next": "26.5.12",
         "react": "19.3.1",
         "react-dom": "19.3.1",

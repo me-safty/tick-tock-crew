@@ -49,3 +49,25 @@ export function slotRect(index: number) {
   if (!rect) throw new Error(`The bomb has no slot ${index}`)
   return rect
 }
+
+const TERMINAL_INSET = 0.075
+const WIRE_MARGIN = 0.035
+
+/** Where a wires module's strands run inside its slot: their span between terminals, spacing and heights. */
+export function wireLayout({ rect, count }: { rect: Rect; count: number }) {
+  const span = rect.width - 2 * TERMINAL_INSET
+  const usable = rect.height - 2 * WIRE_MARGIN
+  const spacing = usable / count
+  return {
+    span,
+    spacing,
+    ys: Array.from({ length: count }, (_, i) => usable / 2 - spacing * (i + 0.5)),
+  }
+}
+
+export const KEY_SIZE = 0.105
+export const KEY_PITCH = 0.13
+/** The keycaps' height in their slot. */
+export const KEY_Y = 0.02
+
+export const keyX = (key: number, count: number) => (key - (count - 1) / 2) * KEY_PITCH

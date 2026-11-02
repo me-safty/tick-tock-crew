@@ -1,5 +1,6 @@
 import { Canvas } from "@react-three/fiber"
 import type { RefObject } from "react"
+import type { BombTarget, Ping } from "../pings"
 import type { Match, OperatorAction } from "../roles"
 import { Bomb } from "./Bomb"
 import { Booth } from "./Booth"
@@ -10,6 +11,8 @@ import type { Seat } from "./look"
 import { usePrefersReducedMotion } from "./motion"
 import { SeatCamera } from "./SeatCamera"
 import { OperatorKeypad, ScannerKeypad } from "./Keypad"
+import { PingLayer } from "./Pings"
+import type { ModuleShape } from "./pingTargets"
 import { OperatorValve, ScannerValve, type ValveControl } from "./Valve"
 import { OperatorWires, ScannerWires } from "./Wires"
 import { Workshop } from "./Workshop"
@@ -33,6 +36,11 @@ type SceneProps = {
   /** Server time minus local time, for the Scanner's gauge. */
   readonly clockOffset: RefObject<number>
   readonly onOpenManual: () => void
+  /** Each role's newest ping on the bomb. */
+  readonly pings: ReadonlyArray<{ readonly fromRole: Ping["fromRole"]; readonly target: BombTarget }>
+  /** A click points at a part of the bomb instead of acting on it. */
+  readonly pinging: boolean
+  readonly onPing: (target: BombTarget) => void
 }
 
 /** The 3D view from the player's seat. Each role only gets the props its view carries. */
@@ -55,11 +63,24 @@ export function Scene({ match, finale, ...roleProps }: SceneProps) {
   )
 }
 
-function RoleSet({ match, pending, onAct, dial, valve, clockOffset, onOpenManual }: Omit<SceneProps, "finale">) {
+function RoleSet({
+  match,
+  pending,
+  onAct,
+  dial,
+  valve,
+  clockOffset,
+  onOpenManual,
+  pings,
+  pinging,
+  onPing,
+}: Omit<SceneProps, "finale">) {
   const view = match.view
   if (!view) return <Workshop />
   const exploded = match.status === "lost"
-  const locked = pending !== null || match.status !== "playing"
+  const locked = pending !== null || match.status !== "playing" || pinging
+  const pingLayer = (modules: ReadonlyArray<ModuleShape>) =>
+    match.status === "playing" && <PingLayer modules={modules} pings={pings} pinging={pinging} onPing={onPing} />
   switch (view.role) {
     case "operator":
       return (
@@ -110,6 +131,7 @@ function RoleSet({ match, pending, onAct, dial, valve, clockOffset, onOpenManual
                   }
                 }
               })}
+              {pingLayer(view.modules)}
             </Bomb>
           )}
         </>
@@ -136,6 +158,7 @@ function RoleSet({ match, pending, onAct, dial, valve, clockOffset, onOpenManual
                   }
                 }
               })}
+              {pingLayer(view.modules)}
             </Bomb>
           )}
         </>

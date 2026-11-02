@@ -4,10 +4,14 @@ import { useMutation, useQuery } from "convex/react"
 import { lazy, type RefObject, Suspense, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { formatClock, secondsLeft, URGENT_SECONDS } from "./clock"
+import { Callouts } from "./Callouts"
+import { CrewBar } from "./CrewBar"
+import { EmoteWheel } from "./EmoteWheel"
 import { useMutationError } from "./errors"
 import { sessionId } from "./guest"
 import { LanguageSwitch } from "./i18n/LanguageSwitch"
-import { ManualSheet } from "./ManualSheet"
+import { ManualSheet, PinIcon } from "./ManualSheet"
+import { bombPings, pingedSections, usePings } from "./pings"
 import type { Lobby, Match, OperatorAction, RoleView, ViewOf } from "./roles"
 import { navigate } from "./router"
 import type { DialControl } from "./scene/Dial"
@@ -25,10 +29,11 @@ const FINALE_MS = 2600
 export function MatchScreen({ lobby }: { readonly lobby: Lobby }) {
   const match = useQuery(api.match.view, { code: lobby.code, sessionId })
   if (!match) return null
-  return <MatchInPlay code={lobby.code} match={match} />
+  return <MatchInPlay lobby={lobby} match={match} />
 }
 
-function MatchInPlay({ code, match }: { readonly code: string; readonly match: Match }) {
+function MatchInPlay({ lobby, match }: { readonly lobby: Lobby; readonly match: Match }) {
+  const { code } = lobby
   const { t } = useTranslation()
   // A room that was already over when it opened skips straight to the end screen.
   const [sawPlaying] = useState(match.status === "playing")
@@ -47,18 +52,29 @@ function MatchInPlay({ code, match }: { readonly code: string; readonly match: M
   const dialModule = match.view?.role === "operator" ? match.view.modules.findIndex((module) => module.kind === "dial") : -1
   const dialArmed = dialModule >= 0 && match.view?.modules[dialModule]?.solved === false && !ended
   const valveModule = match.view?.role === "operator" ? match.view.modules.findIndex((module) => module.kind === "valve") : -1
+  const [pinging, setPinging] = useState(false)
   const valve = useValve({
-    armed: valveModule >= 0 && match.view?.modules[valveModule]?.solved === false && !ended,
+    armed: valveModule >= 0 && match.view?.modules[valveModule]?.solved === false && !ended && !pinging,
     onHold: () => void operator.act({ kind: "hold", module: valveModule }),
     onRelease: () => void operator.act({ kind: "release", module: valveModule }),
   })
   const clockOffset = useServerClockOffset(role === "scanner")
+  const pings = usePings(code)
+  const canPingBomb = (role === "operator" || role === "scanner") && !ended
+  useEffect(() => {
+    if (!pinging) return
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) setPinging(false)
+    }
+    window.addEventListener("keydown", cancel)
+    return () => window.removeEventListener("keydown", cancel)
+  }, [pinging])
   const sendFrequency = () => {
     if (operator.pending || !dialArmed) return
     void operator.act({ kind: "tune", module: dialModule, frequency: dial.control.frequency })
   }
   return (
-    <div className={`match ${role}`}>
+    <div className={`match ${role}${pinging && canPingBomb ? " pinging" : ""}`}>
       <Suspense fallback={<p className="scene-loading muted">{t("match.settingUp")}</p>}>
         <Scene
           match={match}
@@ -69,16 +85,39 @@ function MatchInPlay({ code, match }: { readonly code: string; readonly match: M
           valve={valve.control}
           clockOffset={clockOffset}
           onOpenManual={() => setManualOpen(true)}
+          pings={bombPings(pings.pings)}
+          pinging={pinging && canPingBomb}
+          onPing={(target) => {
+            setPinging(false)
+            pings.point(target)
+          }}
         />
       </Suspense>
       {dialArmed && <DialInput dial={dial} onSend={sendFrequency} />}
       {valve.control.armed && <ValveInput valve={valve} />}
       {role === "scanner" && <div className="xray-lens" data-label={t("match.xray")} aria-hidden />}
       <header className="hud">
-        <div className="hud-role">
-          <span className="eyebrow">{t("match.room", { code })}</span>
-          <h1>{t(match.view ? `roles.${match.view.role}.title` : "roles.spectator")}</h1>
-          {match.view?.role === "analyst" && <Defused view={match.view} />}
+        <div className="hud-start">
+          <div className="hud-role">
+            <span className="eyebrow">{t("match.room", { code })}</span>
+            <h1>{t(match.view ? `roles.${match.view.role}.title` : "roles.spectator")}</h1>
+            {match.view?.role === "analyst" && <Defused view={match.view} />}
+          </div>
+          {match.view && !ended && (
+            <CrewBar seats={lobby.seats}>
+              {canPingBomb && (
+                <button
+                  type="button"
+                  className={`button ping-toggle${pinging ? " on" : ""}`}
+                  aria-pressed={pinging}
+                  onClick={() => setPinging((current) => !current)}
+                >
+                  <PinIcon /> {t("ping.mode")}
+                </button>
+              )}
+              <EmoteWheel onEmote={pings.emote} />
+            </CrewBar>
+          )}
         </div>
         <div className="hud-end">
           {!ended && (
@@ -97,16 +136,33 @@ function MatchInPlay({ code, match }: { readonly code: string; readonly match: M
               {t(`match.feedback.${operator.feedback.text}`)}
             </p>
           )}
-          {operator.error && (
+          {(operator.error ?? pings.error) && (
             <p className="error" role="alert">
-              {operator.error}
+              {operator.error ?? pings.error}
             </p>
           )}
-          <Hint view={match.view} manualOpen={manualOpen} onOpenManual={() => setManualOpen(true)} />
+          {pinging && canPingBomb ? (
+            <p className="hint">{t("ping.hint")}</p>
+          ) : (
+            <Hint view={match.view} manualOpen={manualOpen} onOpenManual={() => setManualOpen(true)} />
+          )}
         </footer>
       )}
       {match.view?.role === "analyst" && manualOpen && !ended && (
-        <ManualSheet manual={match.view.manual} onClose={() => setManualOpen(false)} />
+        <ManualSheet
+          manual={match.view.manual}
+          pinged={pingedSections(pings.pings)}
+          onPing={(section) => pings.point({ kind: "manual", section })}
+          onClose={() => setManualOpen(false)}
+        />
+      )}
+      {!ended && match.view && (
+        <Callouts
+          pings={pings.pings}
+          me={match.view.role}
+          seats={lobby.seats}
+          modules={match.view.modules.map((module) => module.kind)}
+        />
       )}
       {finale && <div className={`finale-flash ${match.status}`} aria-hidden />}
       {ended && !finale && <MatchOver match={match} />}

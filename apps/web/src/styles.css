@@ -384,10 +384,197 @@ input:focus-visible, .button:focus-visible { outline: 2px solid var(--amber); ou
 }
 
 /* Arabic letters join, so letter-spacing and caps styling would break words apart. */
-h1:lang(ar), .eyebrow:lang(ar), .divider:lang(ar), .tag:lang(ar), .manual th:lang(ar), .xray-lens:lang(ar)::after, .code-input:lang(ar)::placeholder {
+h1:lang(ar), .eyebrow:lang(ar), .divider:lang(ar), .tag:lang(ar), .crew-role:lang(ar), .manual th:lang(ar), .xray-lens:lang(ar)::after, .code-input:lang(ar)::placeholder {
   letter-spacing: 0;
   text-transform: none;
 }
 .eyebrow:lang(ar) { font-size: 0.85rem; }
 .tag:lang(ar) { font-size: 0.75rem; }
+.crew-role:lang(ar) { font-size: 0.8rem; }
 .player.empty:lang(ar) { font-style: normal; }
+
+/* Voice */
+.voice-panel {
+  width: min(960px, 100%);
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  padding: 14px 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.voice-panel h2 { margin: 0; }
+.mic-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 0; }
+.mic-controls p { margin: 0; }
+.button.mute.on { color: #ffd7d7; background: #4a1f24; border-color: rgb(255 77 79 / 0.7); }
+kbd {
+  font-family: var(--mono);
+  font-size: 0.75em;
+  margin-inline-start: 6px;
+  padding: 0 6px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  opacity: 0.7;
+}
+.field.device { display: flex; align-items: center; gap: 8px; }
+select {
+  max-width: 260px;
+  font: inherit;
+  font-size: 0.92rem;
+  color: var(--text);
+  background: #12141a;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+select:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+.voice-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 50%;
+  color: var(--muted);
+  transition: color 120ms, background 120ms, box-shadow 120ms;
+}
+.voice-badge svg { width: 15px; height: 15px; fill: currentColor; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.voice-badge path { fill: none; }
+.voice-badge.idle { color: #c9ced8; }
+.voice-badge.connecting { opacity: 0.5; }
+.voice-badge.muted, .voice-badge.listening { color: #c9ced8; }
+.voice-badge .slash { stroke: var(--red); stroke-width: 2.6; }
+.voice-badge.speaking { color: #0e1a10; background: var(--green); box-shadow: 0 0 0 3px rgb(70 195 123 / 0.3), 0 0 14px rgb(70 195 123 / 0.8); }
+@keyframes speak { to { box-shadow: 0 0 0 5px rgb(70 195 123 / 0.18), 0 0 18px rgb(70 195 123 / 0.9); } }
+@media (prefers-reduced-motion: no-preference) {
+  .voice-badge.connecting { animation: blink 1.2s steps(2) infinite; }
+  .voice-badge.speaking { animation: speak 0.5s ease-in-out infinite alternate; }
+}
+
+.hud-start { display: grid; justify-items: start; gap: 10px; }
+.crew-bar {
+  pointer-events: auto;
+  display: grid;
+  gap: 8px;
+  min-width: 230px;
+  padding: 10px 12px;
+  background: rgb(20 22 28 / 0.8);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  backdrop-filter: blur(6px);
+}
+.crew { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.crew-member {
+  --accent: var(--muted);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: 8px;
+  padding-inline-start: 8px;
+  border-inline-start: 3px solid var(--accent);
+}
+.crew-member.operator { --accent: var(--operator); }
+.crew-member.analyst { --accent: var(--analyst); }
+.crew-member.scanner { --accent: var(--scanner); }
+.crew-role { grid-column: 1; color: var(--accent); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.crew-name { grid-column: 1; min-width: 0; font-size: 0.92rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crew-member .voice-badge { grid-column: 2; grid-row: 1 / span 2; }
+.crew-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.crew-actions .button { padding: 6px 10px; font-size: 0.85rem; }
+.crew-actions .mic-controls p { font-size: 0.8rem; }
+
+/* Pings and emotes */
+.pin-icon { width: 1em; height: 1em; flex: none; vertical-align: -0.12em; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linejoin: round; }
+.button.on { color: #1a1204; background: var(--accent, var(--amber)); border-color: var(--accent, var(--amber)); }
+.button.on:hover:not(:disabled) { background: var(--accent, var(--amber)); filter: brightness(1.1); }
+.match.pinging .scene { cursor: crosshair; }
+
+.callouts {
+  position: absolute;
+  /* Below the HUD row, so a toast never covers the clock or the role panel. */
+  top: 104px;
+  left: 50%;
+  translate: -50% 0;
+  width: max-content;
+  max-width: min(440px, calc(100% - 40px));
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+}
+.callout {
+  --accent: var(--muted);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgb(20 22 28 / 0.88);
+  border: 1px solid var(--accent);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+}
+.callout.operator { --accent: var(--operator); }
+.callout.analyst { --accent: var(--analyst); }
+.callout.scanner { --accent: var(--scanner); }
+.callout-name { color: var(--accent); font-weight: 700; }
+.callout.emote span { font-weight: 700; font-size: 1.05rem; }
+@keyframes callout-in { from { opacity: 0; translate: 0 -8px; } }
+@media (prefers-reduced-motion: no-preference) {
+  .callout { animation: callout-in 180ms ease-out; }
+}
+
+.manual .module-title .ping-section { margin-inline-start: auto; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 0.82rem; }
+.manual-sheet .ping-section:disabled { opacity: 1; color: #062430; background: var(--analyst); border-color: #2a9cc0; cursor: default; }
+.manual.pinged { margin-inline: -12px; padding-inline: 12px; padding-bottom: 12px; border-radius: 10px; box-shadow: inset 0 0 0 3px var(--analyst); background: rgb(76 195 230 / 0.12); }
+
+.emote { position: relative; }
+.emote-wheel {
+  position: absolute;
+  top: calc(100% + 10px);
+  inset-inline-start: 0;
+  z-index: 2;
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(20 22 28 / 0.65) 28%, rgb(20 22 28 / 0.92) 29%);
+  border: 1px solid var(--line);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.45);
+  backdrop-filter: blur(6px);
+}
+.emote-option {
+  position: absolute;
+  translate: -50% -50%;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 68px;
+  padding: 6px 8px;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: #2a2f3b;
+  border: 1px solid #3a4050;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.emote-option:hover, .emote-option:focus-visible { background: var(--accent, var(--amber)); color: #1a1204; outline: none; }
+.emote-option kbd { margin: 0; font-size: 0.7rem; }
+
+@media (max-width: 640px) {
+  .crew-bar { min-width: 0; padding: 6px 8px; gap: 6px; }
+  .crew { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+  .crew-member { display: flex; align-items: center; gap: 4px; padding-inline-start: 6px; }
+  .crew-role { display: none; }
+  .crew-name { max-width: 7ch; font-size: 0.85rem; }
+  .crew-actions .button { padding: 5px 8px; font-size: 0.8rem; }
+  .crew-actions kbd { display: none; }
+  .callouts { top: auto; bottom: 120px; }
+}

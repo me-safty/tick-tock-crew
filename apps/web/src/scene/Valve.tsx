@@ -120,7 +120,8 @@ function Handle({ color, valve }: { readonly color: string; readonly valve: Valv
 
   const grab = (event: ThreeEvent<PointerEvent>) => {
     event.stopPropagation()
-    if (!valve.armed) return
+    // A right-click is a ping, never a hold.
+    if (!valve.armed || event.nativeEvent.button !== 0) return
     const { pointerId } = event.nativeEvent
     // Window capture runs before the seat camera's listener, so holding the handle keeps the view still.
     const block = (moved: PointerEvent) => {

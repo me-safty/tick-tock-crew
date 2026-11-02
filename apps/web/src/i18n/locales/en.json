@@ -107,8 +107,8 @@
     },
     "hint": {
       "noSeat": "You don't hold a seat in this match.",
-      "operator": "Drag to look around · Click wires to cut and keys to press · Turn the dial by dragging it, or click it and use the arrow keys · Hold the valve's handle, or Space once it's clicked, to vent",
-      "scanner": "Drag to look around · Read the wire tags, the live key, the waveform and the valve's coils to your crew, and call out its pressure",
+      "operator": "Drag to look around · Click wires to cut and keys to press · Turn the dial by dragging it, or click it and use the arrow keys · Hold the valve's handle, or Space once it's clicked, to vent · Right-click to ping your crew",
+      "scanner": "Drag to look around · Read the wire tags, the live key, the waveform and the valve's coils to your crew, and call out its pressure · Right-click to ping your crew",
       "analyst": "Drag to look around",
       "openManual": "Open the manual"
     },
@@ -198,6 +198,49 @@
       "strike": "Letting go outside the band is a strike. If the needle reaches 100, the valve bursts: also a strike. After either, the needle jumps back to where it started."
     }
   },
+  "voice": {
+    "title": "Voice chat",
+    "crew": "Crew",
+    "prompt": "Talk with your crew over your mic. Your browser will ask to use it.",
+    "enable": "Turn on mic",
+    "asking": "Allow the mic in your browser's prompt…",
+    "denied": "Mic blocked: you can still hear your crew. Allow the microphone in this site's settings, then try again.",
+    "unavailable": "No mic found: you can still hear your crew.",
+    "retryMic": "Try mic again",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "device": "Microphone",
+    "defaultDevice": "Default microphone",
+    "deviceN": "Microphone {{n}}",
+    "state": {
+      "speaking": "Speaking",
+      "idle": "Voice connected",
+      "connecting": "Connecting voice…",
+      "muted": "Muted",
+      "listening": "Listening only"
+    }
+  },
+  "ping": {
+    "mode": "Ping",
+    "hint": "Click a part of the bomb to point your crew at it · Right-click points any time · Esc cancels",
+    "point": "Point",
+    "pointSection": "Point the crew at {{module}}",
+    "module": "Points at the {{module}}",
+    "wire": "Points at wire {{n}} · {{module}}",
+    "key": "Points at key {{n}} · {{module}}",
+    "manual": "Points at the manual: {{module}}",
+    "pointed": "Pointing the crew at {{module}}",
+    "pointedShort": "Pointed"
+  },
+  "emotes": {
+    "open": "Quick call",
+    "yes": "Yes!",
+    "no": "No!",
+    "wait": "Wait!",
+    "hurry": "Hurry!",
+    "repeat": "Say again?",
+    "nice": "Nice!"
+  },
   "errors": {
     "ROOM_NOT_FOUND": "Room not found",
     "MATCH_ALREADY_STARTED": "The match has already started",
@@ -217,6 +260,10 @@
     "KEY_ALREADY_PRESSED": "That key is already pressed",
     "FREQUENCY_OFF_DIAL": "That frequency isn't on the dial",
     "VALVE_NOT_HELD": "Nobody is holding the valve",
+    "SIGNAL_INVALID": "That voice signal can't be sent",
+    "PING_NOT_ALLOWED": "Your role can't point at that",
+    "PING_TARGET_NOT_FOUND": "There's nothing there to point at",
+    "TOO_MANY_PINGS": "Slow down: wait a moment before the next ping",
     "NICKNAME_LENGTH": "Pick a nickname of 1 to {{max}} characters"
   }
 }

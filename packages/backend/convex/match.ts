@@ -11,6 +11,7 @@ import {
   MANUAL_TEXT,
   MARKS,
   type MatchState,
+  MODULE_KINDS,
   type MatchStatus,
   matchStatus,
   type Outcome,
@@ -22,11 +23,13 @@ import {
 } from "@tick-tock-crew/rules"
 import { v } from "convex/values"
 import { Effect, Option } from "effect"
+import { internal } from "./_generated/api"
 import type { Doc } from "./_generated/dataModel"
 import { type AppError, appError } from "./errors"
 import { internalMutation, mutation, type MutationCtx, query, type QueryCtx } from "./_generated/server"
 import { findRoom, findSeat, getRoom } from "./rooms"
-import { valveEvent } from "./schema"
+import { literals, valveEvent } from "./schema"
+import { SIGNAL_TTL_MS } from "./signals"
 import { scheduleBurst } from "./valve"
 
 type MatchRoom = Exclude<Doc<"rooms">, { status: "lobby" }>
@@ -61,12 +64,10 @@ export const explode = internalMutation({
     const room = await ctx.db.get("rooms", roomId)
     if (room?.status !== "playing") return null
     await ctx.db.replace("rooms", roomId, endedRoom({ room, status: "lost", strikes: room.strikes }))
+    await ctx.scheduler.runAfter(SIGNAL_TTL_MS, internal.voice.pruneRoom, { roomId })
     return null
   },
 })
-
-const literals = <const T extends string>(values: readonly [T, T, ...T[]]) =>
-  v.union(...values.map((value) => v.literal(value)))
 
 const solved = v.boolean()
 const cut = v.boolean()
@@ -126,7 +127,7 @@ const roleView = v.union(
   v.object({
     role: v.literal("analyst"),
     modules: v.array(v.object({ kind: literals(["wires", "keypad", "dial", "valve"]), solved })),
-    manual: v.array(v.object({ title: manualText, blocks: v.array(manualBlock) })),
+    manual: v.array(v.object({ module: literals(MODULE_KINDS), title: manualText, blocks: v.array(manualBlock) })),
   }),
 )
 
@@ -200,6 +201,7 @@ async function settle(
   } else {
     await ctx.scheduler.cancel(room.explodeJobId)
     await ctx.db.replace("rooms", room._id, endedRoom({ room, status, strikes: outcome.state.strikes }))
+    await ctx.scheduler.runAfter(SIGNAL_TTL_MS, internal.voice.pruneRoom, { roomId: room._id })
   }
 }
 
