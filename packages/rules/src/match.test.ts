@@ -8,13 +8,16 @@ import {
   cutWire,
   holdValve,
   initialState,
+  MATCH_MS,
   type MatchState,
   matchStatus,
+  pauseState,
   pressKey,
   releaseValve,
+  shiftState,
   tuneDial,
 } from "./match"
-import { burstAt, RELEASE_GRACE_MS, solveValve } from "./valve"
+import { burstAt, isHeld, lastBurstAt, pressureAt, RELEASE_GRACE_MS, solveValve, type ValveProgress } from "./valve"
 import { solveWires } from "./wires"
 
 const bomb = generateBomb(7, "normal")
@@ -257,4 +260,68 @@ describe("matchStatus", () => {
       expect(matchStatus(state)).toBe("won")
     }),
   )
+})
+
+const valveProgress = (state: MatchState): ValveProgress => {
+  const module = state.modules[VALVE]
+  if (module?.kind !== "valve") throw new Error("expected the valve")
+  return module.progress
+}
+
+describe("pause", () => {
+  const PAUSED = 20_000
+  const PAUSE_MS = 45_000
+
+  it.effect("seals a held valve where its needle is, without a strike", () =>
+    Effect.gen(function* () {
+      const { state: held } = yield* hold(fresh(), 1_000)
+      const paused = pauseState(bomb, held, { at: STARTED + PAUSED })
+      expect(paused.strikes).toBe(0)
+      const progress = valveProgress(paused)
+      expect(isHeld(valveModule.gauge, progress)).toBe(false)
+      expect(pressureAt(valveModule.gauge, progress, STARTED + PAUSED)).toBe(
+        pressureAt(valveModule.gauge, valveProgress(held), STARTED + PAUSED),
+      )
+      expect(pauseState(bomb, fresh(), { at: STARTED + PAUSED })).toStrictEqual(fresh())
+    }),
+  )
+
+  it.effect("resumes the needle where it stopped once the history moves past the pause", () =>
+    Effect.gen(function* () {
+      const { state: held } = yield* hold(fresh(), 1_000)
+      const paused = pauseState(bomb, held, { at: STARTED + PAUSED })
+      const resumed = shiftState(paused, { by: PAUSE_MS })
+      const before = valveProgress(paused)
+      const after = valveProgress(resumed)
+      for (const ms of [0, 1_000, 5_000]) {
+        expect(pressureAt(valveModule.gauge, after, STARTED + PAUSED + PAUSE_MS + ms)).toBeCloseTo(
+          pressureAt(valveModule.gauge, before, STARTED + PAUSED + ms),
+        )
+      }
+      const due = burstAt(valveModule.gauge, before) ?? 0
+      expect(burstAt(valveModule.gauge, after)).toBe(due + PAUSE_MS)
+      expect(resumed.modules.filter((_, index) => index !== VALVE)).toStrictEqual(paused.modules.filter((_, index) => index !== VALVE))
+    }),
+  )
+})
+
+describe("lastBurstAt", () => {
+  it.effect("finds a burst, but not a strike on release", () =>
+    Effect.gen(function* () {
+      const due = burstAt(valveModule.gauge, { since: STARTED, events: [] }) ?? 0
+      const burst = yield* burstValve(bomb, fresh(), { module: VALVE, at: due })
+      expect(lastBurstAt(valveProgress(burst.state))).toBe(due)
+      const missed = yield* vent(fresh(), ventedTo(band.low) + RELEASE_GRACE_MS + 1)
+      expect(lastBurstAt(valveProgress(missed.state))).toBeNull()
+      expect(lastBurstAt(valveProgress(fresh()))).toBeNull()
+    }),
+  )
+})
+
+describe("MATCH_MS", () => {
+  it("gives harder bombs less time", () => {
+    expect(MATCH_MS.easy).toBeGreaterThan(MATCH_MS.normal)
+    expect(MATCH_MS.normal).toBeGreaterThan(MATCH_MS.hard)
+    expect(MATCH_MS.normal).toBe(5 * 60_000)
+  })
 })

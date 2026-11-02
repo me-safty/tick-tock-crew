@@ -1,12 +1,15 @@
 import { Effect, Option, Schema } from "effect"
-import type { Bomb, BombModule } from "./bomb"
+import type { Bomb, BombModule, Difficulty } from "./bomb"
 import { DIAL_RANGE, solveDial } from "./dial"
 import { solveKeypad } from "./keypad"
 import { MutableArray } from "./manual"
-import { burstAt, isHeld, pressureAt, sealsInBand, solveValve, type ValveEvent, ValveProgress } from "./valve"
+import { burstAt, isHeld, pressureAt, sealsInBand, shiftProgress, solveValve, type ValveEvent, ValveProgress } from "./valve"
 import { solveWires } from "./wires"
 
 export const MAX_STRIKES = 3
+
+/** How long the crew has, by difficulty. */
+export const MATCH_MS: Record<Difficulty, number> = { easy: 6 * 60_000, normal: 5 * 60_000, hard: 4 * 60_000 }
 
 const solved = Schema.Boolean
 
@@ -211,3 +214,32 @@ export const burstValve = (
     const next = { ...moduleState, progress: record("reset") }
     return { kind: "burst", state: settle(state, { module: action.module, next, right: false }) }
   })
+
+/**
+ * The match as it stands when play stops at `at`. A held valve is sealed where its needle is, without judging
+ * it: the Operator's hand comes off while the crew waits, and nobody is struck for that.
+ */
+export function pauseState(bomb: Bomb, state: MatchState, { at }: { readonly at: number }): MatchState {
+  return {
+    ...state,
+    modules: state.modules.map((module, index) => {
+      const valve = bomb.modules[index]
+      if (module.kind !== "valve" || valve?.kind !== "valve" || module.solved || !isHeld(valve.gauge, module.progress)) {
+        return module
+      }
+      const { since, events } = module.progress
+      const stamp = Math.max(at, events.at(-1)?.at ?? since)
+      return { ...module, progress: { since, events: [...events, { kind: "release" as const, at: stamp }] } }
+    }),
+  }
+}
+
+/** The match `by` ms later, as if the pause never happened: every timed history moves forward with the clock. */
+export function shiftState(state: MatchState, { by }: { readonly by: number }): MatchState {
+  return {
+    ...state,
+    modules: state.modules.map((module) =>
+      module.kind === "valve" ? { ...module, progress: shiftProgress(module.progress, by) } : module,
+    ),
+  }
+}

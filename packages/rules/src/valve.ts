@@ -112,6 +112,25 @@ export function burstAt(gauge: Gauge, progress: ValveProgress): number | null {
   return reading.at + Math.ceil(((MAX_PRESSURE - reading.pressure) / gauge.rise) * 1000)
 }
 
+/** The same history `by` ms later, so the needle reads at `time + by` what it read at `time`. */
+export const shiftProgress = ({ since, events }: ValveProgress, by: number): ValveProgress => ({
+  since: since + by,
+  events: events.map((event) => ({ ...event, at: event.at + by })),
+})
+
+/**
+ * When the valve last burst, or null. A strike on release records a release and a reset together; a reset
+ * without a release just before it is a burst.
+ */
+export function lastBurstAt({ events }: ValveProgress): number | null {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const event = events[i]
+    const before = events[i - 1]
+    if (event?.kind === "reset" && !(before?.kind === "release" && before.at === event.at)) return event.at
+  }
+  return null
+}
+
 const RATES = {
   easy: { rise: 0.1, vent: [4, 5] },
   normal: { rise: 0.12, vent: [5, 7] },
