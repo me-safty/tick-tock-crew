@@ -2,6 +2,7 @@ import { api } from "@tick-tock-crew/backend/api"
 import { useAction, useMutation, useQuery } from "convex/react"
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { sessionId } from "../guest"
+import { hasModifier, isTyping } from "../keys"
 import type { Lobby } from "../roles"
 import { PeerLink } from "./PeerLink"
 import { decodeSignal, encodeSignal, isPolite, type MicState, type Role, routeSignal } from "./protocol"
@@ -216,9 +217,6 @@ function RemoteAudio({ stream }: { readonly stream: MediaStream }) {
   return <audio ref={audio} autoPlay />
 }
 
-const isTyping = (target: EventTarget | null) =>
-  target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
-
 /** M toggles the mic anywhere but in a text field, on any keyboard layout. */
 function useMuteKey({ enabled, toggle }: { enabled: boolean; toggle: () => void }) {
   const latest = useRef(toggle)
@@ -226,7 +224,7 @@ function useMuteKey({ enabled, toggle }: { enabled: boolean; toggle: () => void 
   useEffect(() => {
     if (!enabled) return
     const onKey = (event: KeyboardEvent) => {
-      if (event.code !== "KeyM" || event.repeat || event.ctrlKey || event.metaKey || event.altKey || isTyping(event.target)) return
+      if (event.code !== "KeyM" || event.repeat || hasModifier(event) || isTyping(event.target)) return
       latest.current()
     }
     window.addEventListener("keydown", onKey)
