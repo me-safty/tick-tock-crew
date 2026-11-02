@@ -217,6 +217,27 @@ export const startMatch = mutation({
   },
 })
 
+/** Brings the crew back to this room's lobby after a match, in the same seats and not ready; the next start rolls a new bomb. */
+export const playAgain = mutation({
+  args: { code: v.string(), sessionId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { code, sessionId }) => {
+    const room = await getRoom(ctx, code)
+    if (room.status === "lobby") return null
+    if (room.status !== "won" && room.status !== "lost") throw appError({ code: "MATCH_ALREADY_STARTED" })
+    if (!(await findSeat(ctx, { roomId: room._id, sessionId }))) throw appError({ code: "SEAT_REQUIRED" })
+    const modules = await ctx.db
+      .query("modules")
+      .withIndex("by_room_and_index", (q) => q.eq("roomId", room._id))
+      .take(generateBomb(room.seed, room.difficulty).modules.length)
+    for (const module of modules) await ctx.db.delete("modules", module._id)
+    for (const seat of await roomSeats(ctx, room._id)) await ctx.db.patch("seats", seat._id, { ready: false })
+    const { hostSessionId, difficulty } = room
+    await ctx.db.replace("rooms", room._id, { code: room.code, hostSessionId, difficulty, status: "lobby" })
+    return null
+  },
+})
+
 const player = v.object({
   name: v.string(),
   ready: v.boolean(),
